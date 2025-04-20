@@ -264,7 +264,3 @@ The system shall track payment methods used by customers for each transaction an
 1. Support for email services for notifications and invoices
 2. Export functionality to common formats (CSV, PDF, Excel)
 
-<div style="text-align: center">⁂</div>
-
-[^1]: https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/65031695/de2a7c57-a9f5-42fe-b2ba-a52fcc3e1736/paste.txt
-
