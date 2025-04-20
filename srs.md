@@ -1,5 +1,3 @@
-<img src="https://r2cdn.perplexity.ai/pplx-full-logo-primary-dark%402x.png" class="logo" width="120"/>
-
 # Software Requirements Specification (SRS) for Pharmacy Management System
 
 This SRS document provides an overview of requirements for a web-based Pharmacy Management System for medicine shops in India. It aims for seamless operations, enhanced inventory management, improved customer experience, and optimized business processes through technology.
