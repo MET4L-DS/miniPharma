@@ -1,22 +1,4 @@
 how to write ER diagram in text format to automatically generate as image
-
-<first-entity> [<relationship> <second-entity> : <relationship-label>]
-
-Value (left)	Value (right)	Meaning
-        |o	        o|	Zero or one
-        ||        	||	Exactly one
-        }o        	o{	Zero or more (no upper limit)
-        }|        	|{	One or more (no upper limit)
-
-Value	Alias for
---	identifying
-..	non-identifying
-
-EXAMPLE:
-    CAR ||--o{ DRIVER : allows
-    PERSON }o..o{ DRIVER : is
-
-
 use snake case for table name and attributes for consistency sake
 PK -> primary key | FK -> forign key | UK -> unique key
 
@@ -37,8 +19,9 @@ medicine {
 
 --- START WRITING FROM HERE ONWARDS ---
 
-erDiagram
+# various tables and their attributes along with primary key, forign key and unique key
 
+erDiagram
 user {
     int user_id PK
     string role
@@ -141,6 +124,26 @@ alert {
     date alert_date
     bool resolved
 }
+
+# how to show relationship between table and their constriants
+<first-entity> [<relationship> <second-entity> : <relationship-label>]
+
+Value (left)	Value (right)	Meaning
+        |o	        o|	Zero or one
+        ||        	||	Exactly one
+        }o        	o{	Zero or more (no upper limit)
+        }|        	|{	One or more (no upper limit)
+
+Value	Alias for
+--	identifying
+..	non-identifying
+
+EXAMPLE:
+    CAR ||--o{ DRIVER : allows
+    PERSON }o..o{ DRIVER : is
+
+
+# relationship with various table with constraints
 
 product ||--o{ batch : has
 product ||--o{ product_chemical : contains
