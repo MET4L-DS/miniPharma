@@ -1,161 +1,136 @@
-how to write ER diagram in text format to automatically generate as image
-use snake case for table name and attributes for consistency sake
-PK -> primary key | FK -> forign key | UK -> unique key
-
-table_name {
-        data_type attribute_name PK/FK/UK/blank "write comment inside inverted comma if required"
-}
-
-Example:
-medicine {
-        int med_id PK
-        string name
-        string brand "for local use generic"
-        string type "Tablet, Syrup, Injection"
-        bool prescription_required
-        string hsn
-        decimal(4, 2) gst
-}
-
---- START WRITING FROM HERE ONWARDS ---
-
-# various tables and their attributes along with primary key, forign key and unique key
-
+%%-------------------------------GUIDELINES FOR TABLE & ATTRIBUTES------------------------------------------
 erDiagram
-user {
-    int user_id PK
-    string role
-}
-
-customer {
-    int customer_id PK
-    string name
-    string mobile UK
-}
-
-supplier {
-    int supplier_id PK
-    string name
-    string gstin UK
-    string contact
-}
-
-product {
-    int product_id PK
-    string brand_name
-    string generic_name
-    string hsn
-    decimal gst
-    bool prescription_required
-}
-
-chemical {
-    int chemical_id PK
-    string name
-    string formula
-}
-
-product_chemical {
-    int product_id PK, FK
-    int chemical_id PK, FK
-    string strength
-}
-
-batch {
-    int batch_id PK
-    int product_id FK
-    int supplier_id FK
-    date expiry_date
-    int quantity_on_hand
-    decimal purchase_price_per_unit
-    decimal selling_price_per_unit
-    int reorder_point
-}
-
-purchase_order {
-    int po_id PK
-    int supplier_id FK
-    date order_date
-    string status
-}
-
-po_item {
-    int po_item_id PK
-    int po_id FK
-    int batch_id FK
-    int quantity_ordered
-}
-
-sales_transaction {
-    int transaction_id PK
-    date transaction_date
-    int sold_by_user_id FK
-    int customer_id FK
-}
-
-sales_item {
-    int sales_item_id PK
-    int transaction_id FK
-    int batch_id FK
-    int quantity_sold
-    decimal selling_price_per_unit
-}
-
-invoice {
-    int invoice_id PK
-    int transaction_id FK
-    decimal total_amount
-    decimal amount_paid
-    string payment_status
-}
-
-forecast {
-    int forecast_id PK
-    int product_id FK
-    date forecast_date
-    int quantity_predicted
-    string model_used
-}
-
-alert {
-    int alert_id PK
-    int batch_id FK
-    string alert_type
-    date alert_date
-    bool resolved
-}
-
-# how to show relationship between table and their constriants
-<first-entity> [<relationship> <second-entity> : <relationship-label>]
-
-Value (left)	Value (right)	Meaning
-        |o	        o|	Zero or one
-        ||        	||	Exactly one
-        }o        	o{	Zero or more (no upper limit)
-        }|        	|{	One or more (no upper limit)
-
-Value	Alias for
---	identifying
-..	non-identifying
-
-EXAMPLE:
-    CAR ||--o{ DRIVER : allows
-    PERSON }o..o{ DRIVER : is
+%% how to write ER diagram in text format to automatically generate as image
+%% use snake case for table name and attributes for consistency sake
+%% PK -> primary key | FK -> forign key | UK -> unique key
+%% 
+%% table_name {
+%%         data_type attribute_name PK/FK/UK/blank "write comment inside inverted comma if required"
+%% }
 
 
-# relationship with various table with constraints
+%% ----------------------------------------TABLE AND ATTRIBUTES--------------------------------------
+    %% strong entity
+    USER {
+        string phone_number PK
+        string username
+        string password_hash
+        string role
+        datetime last_login
+        bool is_active
+    }
+    
+    %% strong entity
+    MEDICINE {
+        string medicine_id PK
+        int composition_id FK
+        string name
+        string brand
+        string hsn_code
+        float gst_rate
+        bool requires_prescription
+        string therapeutic_category
+    }
 
-product ||--o{ batch : has
-product ||--o{ product_chemical : contains
-chemical ||--o{ product_chemical : is_part_of
-supplier ||--o{ batch : provides
-supplier ||--o{ purchase_order : makes
-purchase_order ||--o{ po_item : contains
-batch ||--o{ po_item : fulfills
-batch ||--o{ sales_item : sold_as
-sales_transaction ||--o{ sales_item : contains
-sales_transaction ||--|| invoice : has
-user ||--o{ sales_transaction : handles
-customer ||--o{ sales_transaction : buys
-product ||--o{ forecast : predicted_for
-batch ||--o{ alert : triggers
+    %% weak entity depends on MEDICINE
+    CHEMICAL_COMPOSITION {
+        int composition_id FK
+        string chemical_name
+        string strength
+    }
+
+    %% two medici might have same batch number
+    %% average_purchase_price because same batch medicine might have purchased on different price
+    BATCH {
+        string batch_number PK
+        string medicine_id PK,FK
+        date expiry_date
+        decimal selling_price "AT MRP"
+        int quantity_in_stock
+        decimal average_purchase_price
+    }
+
+    CUSTOMER {
+        string customer_id PK
+        string name
+        string phone
+        string email    "OPTIONAL"
+        date registration_date
+        int loyalty_points
+    }
+
+    PRESCRIPTION {
+        string prescription_id PK
+        string customer_id FK
+        string doctor_id FK
+        date issue_date
+        date valid_until
+        string digital_copy_url
+    }
+
+    DOCTOR {
+        string doctor_id PK
+        string name
+        string registration_number
+        string specialization
+        string contact_number
+    }
+
+    INVOICE {
+        string invoice_id PK
+        string customer_id FK
+        datetime invoice_date
+        decimal total_amount
+        decimal discount_amount
+        string payment_id
+        string prescription_id FK
+    }
+
+    PAYMENT {
+        string payment_id PK, FK
+        string payment_type "UPI, CASH, CARD"
+        string transaction_id "FOR CASH 420"
+        float transaction_amount
+    }
+
+    ALERT {
+        string alert_id PK
+        string batch_id FK
+        string medicine_id FK
+        string alert_type
+        datetime generated_on
+        string status
+    }
+
+
+%% ----------------------------------------GUIDELINES FOR RELATIONSHIP & CONSTRAINTS--------------------------------------
+%% how to show relationship between table and their constriants
+%%  <first-entity> [<relationship> <second-entity> : <relationship-label>]
+%% 
+%% Value (left)	Value (right)	Meaning
+%%         |o	        o|	Zero or one
+%%         ||        	||	Exactly one
+%%         }o        	o{	Zero or more (no upper limit)
+%%         }|        	|{	One or more (no upper limit)
+%% 
+%% Value	Alias for
+%% --	identifying
+%% ..	non-identifying
+%% 
+%% EXAMPLE:
+%%     CAR ||--o{ DRIVER : allows
+%%     PERSON }o..o{ DRIVER : is
+
+%% ------------------------------------------------RELATIONSHIP & CONSTRAINTS----------------------------------------------
+    %% Relationships
+    DOCTOR ||--|{ PRESCRIPTION : "issues"
+    CUSTOMER ||--|{ PRESCRIPTION : "receives"
+    PRESCRIPTION ||--|{ MEDICINE : "contains"
+    MEDICINE ||--|{ BATCH : "is available in"
+    MEDICINE }|--|| CHEMICAL_COMPOSITION : "has composition"
+    CUSTOMER ||--|{ INVOICE : "receives"
+    USER ||--|{ INVOICE : "generates"
+    INVOICE ||--|| PAYMENT : "is paid by"
+    INVOICE ||--|{ PRESCRIPTION : "is generated for"
+    BATCH ||--|{ ALERT : "triggers"
+    MEDICINE ||--|{ ALERT : "triggers"
