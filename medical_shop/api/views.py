@@ -1,0 +1,53 @@
+from django.shortcuts import render
+from rest_framework.views import APIView
+# Create your views here.from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.parsers import JSONParser
+from django.db import connection
+from django.utils.decorators import method_decorator
+@method_decorator(csrf_exempt, name='dispatch')
+class AddMedicineView(APIView):
+
+    def post(self, request, *args, **kwargs):
+        data = request.data
+        print("Received data:", data)
+
+        required_fields = ['medicine_id', 'composition_id', 'name', 'brand']
+        for field in required_fields:
+            if field not in data or data[field] == '':
+                return Response({'error': f'{field} is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    INSERT INTO product (
+                        product_id,
+                        composition_id,
+                        generic_name,
+                        brand_name,
+                        hsn,
+                        gst,
+                        prescription_required,
+                        therapeutic_category
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """, [
+                    data['medicine_id'],
+                    data['composition_id'],
+                    data['name'],
+                    data['brand'],
+                    data.get('hsn_code', ''),
+                    data.get('gst_rate', 0),
+                    data.get('requires_prescription', False),
+                    data.get('therapeutic_category', '')
+                ])
+
+            return Response({'message': 'Medicine saved successfully using raw SQL!'}, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            print("Error:", str(e))
+            return Response({'error': 'Something went wrong while saving the medicine.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
