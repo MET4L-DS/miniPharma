@@ -100,7 +100,7 @@ export function AddMedicineDialog({ onAddMedicine }: AddMedicineDialogProps) {
 			toast.success(response.data.message || "Medicine added successfully!");
 			
 			// Optionally, also call your parent callback if needed
-			onAddMedicine(formData);
+			onAddMedicine(response.data.formData);
 	
 			// Reset form
 			setFormData({
