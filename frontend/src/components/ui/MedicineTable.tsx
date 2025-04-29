@@ -44,7 +44,7 @@ export function MedicineTable({
 	const [searchTerm, setSearchTerm] = useState("");
 	const [selectedCategory, setSelectedCategory] = useState("All");
 	const [requiresPrescription, setRequiresPrescription] = useState("All");
-
+	
 	// Edit state
 	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 	const [currentMedicine, setCurrentMedicine] = useState<Medicine | null>(
@@ -77,8 +77,13 @@ export function MedicineTable({
 	// Get unique categories from medicines for dynamic filter options
 	const categories = [
 		"All",
-		...new Set(medicines.map((med) => med.therapeutic_category)),
-	];
+		...new Set(
+		  medicines
+			.map((med) => med.therapeutic_category)
+			.filter((category) => category && category.trim() !== "")
+		),
+	  ];
+	  
 
 	const handleEdit = (id: string) => {
 		const medicineToEdit =
