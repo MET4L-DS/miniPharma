@@ -158,3 +158,37 @@ def login_user(request):
             return JsonResponse({'error': str(e)}, status=500)
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
+@csrf_exempt
+def to_orders(request):
+    if request.method == 'POST':
+        try:
+            logging.info(request)
+            data = json.loads(request.body)
+            logging.info(data)
+            print(data)
+            customer_name=data.get('customer_name')
+            customer_number=data.get('customer_number')
+            doctor_name = data.get('doctor_name')
+            total_amount = data.get('total_amount')
+            discount_percentage=data.get('discount_percentage')
+            with connection.cursor() as cursor:
+            
+
+            # Check if username or email exists
+                
+                # Insert the new user
+                d=cursor.execute("""
+                    INSERT INTO orders (customer_name,customer_number,doctor_name,total_amount,discount_percentage)
+                    VALUES (%s, %s, %s,%s,%s)
+                """, (customer_name,customer_number,doctor_name,total_amount,discount_percentage))
+                print(d)
+                
+                cursor.close()
+                
+
+            return JsonResponse({'message': 'order successfully'}, status=201)
+
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
