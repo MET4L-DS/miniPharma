@@ -12,7 +12,6 @@ from django.contrib.auth.hashers import make_password,check_password
 import json,logging
 @method_decorator(csrf_exempt, name='dispatch')
 class AddMedicineView(APIView):
-
     def post(self, request, *args, **kwargs):
         data = request.data
         print("Received data:", data)
@@ -25,25 +24,11 @@ class AddMedicineView(APIView):
         try:
             with connection.cursor() as cursor:
                 cursor.execute("""
-                    INSERT INTO product (
-                        product_id,
-                        composition_id,
-                        generic_name,
-                        brand_name,
-                        hsn,
-                        gst,
-                        prescription_required,
-                        therapeutic_category
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO product (product_id,composition_id,generic_name,brand_name,hsn,gst,prescription_required,therapeutic_category
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """, [
-                    data['medicine_id'],
-                    data['composition_id'],
-                    data['name'],
-                    data['brand'],
-                    data.get('hsn_code', ''),
-                    data.get('gst_rate', 0),
-                    data.get('requires_prescription', False),
-                    data.get('therapeutic_category', '')
+                    data['medicine_id'],data['composition_id'],data['name'],data['brand'],data.get('hsn_code', ''),data.get('gst_rate', 0),
+                    data.get('requires_prescription', False),data.get('therapeutic_category', '')
                 ])
 
             return Response({'message': 'Medicine saved successfully using raw SQL!'}, status=status.HTTP_201_CREATED)
@@ -51,6 +36,7 @@ class AddMedicineView(APIView):
         except Exception as e:
             print("Error:", str(e))
             return Response({'error': 'Something went wrong while saving the medicine.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 @csrf_exempt
 def get_all_products(request):
     if request.method == "GET":
@@ -69,13 +55,11 @@ def get_all_products(request):
             return JsonResponse(results, safe=False, status=200)
 
         except DatabaseError as e:
-            # Database-related errors
             return JsonResponse(
                 {"error": "Database error occurred", "details": str(e)},
                 status=500
             )
         except Exception as e:
-            # Any other unexpected errors
             return JsonResponse(
                 {"error": "An unexpected error occurred", "details": str(e)},
                 status=500
@@ -90,38 +74,26 @@ def get_all_products(request):
 def register_user(request):
     if request.method == 'POST':
         try:
-            logging.info(request)
             data = json.loads(request.body)
-            logging.info(data)
-            print(data)
-            manager=data.get('manager')
-            role=data.get('role')
+            manager = data.get('manager')
+            role = data.get('role')
             phone = data.get('phone')
             password = data.get('password')
-            
+
             if not all([phone, password]):
                 return JsonResponse({'error': 'All fields are required'}, status=400)
 
             hashed_password = make_password(password)
-            print(hashed_password)
-            # connect to the database
-            with connection.cursor() as cursor:
-            
 
-            # Check if username or email exists
-                cursor.execute("SELECT 1 FROM register WHERE  phone=%s", (phone,))
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1 FROM register WHERE phone=%s", (phone,))
                 if cursor.fetchone():
                     return JsonResponse({'error': 'Username or phone already exists'}, status=400)
 
-                # Insert the new user
-                d=cursor.execute("""
-                    INSERT INTO register (phone,password,manager,role)
-                    VALUES (%s, %s, %s,%s)
-                """, (phone, hashed_password,manager,role))
-                print(d)
-                
-                cursor.close()
-                
+                cursor.execute("""
+                    INSERT INTO register (phone, password, manager, role)
+                    VALUES (%s, %s, %s, %s)
+                """, (phone, hashed_password, manager, role))
 
             return JsonResponse({'message': 'User registered successfully'}, status=201)
 
@@ -129,6 +101,7 @@ def register_user(request):
             return JsonResponse({'error': str(e)}, status=500)
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
+
 @csrf_exempt
 def login_user(request):
     if request.method == 'POST':
@@ -162,31 +135,20 @@ def login_user(request):
 def to_orders(request):
     if request.method == 'POST':
         try:
-            logging.info(request)
             data = json.loads(request.body)
-            logging.info(data)
-            print(data)
-            customer_name=data.get('customer_name')
-            customer_number=data.get('customer_number')
+            customer_name = data.get('customer_name')
+            customer_number = data.get('customer_number')
             doctor_name = data.get('doctor_name')
             total_amount = data.get('total_amount')
-            discount_percentage=data.get('discount_percentage')
+            discount_percentage = data.get('discount_percentage')
+
             with connection.cursor() as cursor:
-            
+                cursor.execute("""
+                    INSERT INTO orders (customer_name, customer_number, doctor_name, total_amount, discount_percentage)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (customer_name, customer_number, doctor_name, total_amount, discount_percentage))
 
-            # Check if username or email exists
-                
-                # Insert the new user
-                d=cursor.execute("""
-                    INSERT INTO orders (customer_name,customer_number,doctor_name,total_amount,discount_percentage)
-                    VALUES (%s, %s, %s,%s,%s)
-                """, (customer_name,customer_number,doctor_name,total_amount,discount_percentage))
-                print(d)
-                
-                cursor.close()
-                
-
-            return JsonResponse({'message': 'order successfully'}, status=201)
+            return JsonResponse({'message': 'Order successfully created'}, status=201)
 
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)

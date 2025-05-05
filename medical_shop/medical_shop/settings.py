@@ -78,12 +78,12 @@ WSGI_APPLICATION = 'medical_shop.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': 'django.db.backends.mysql',
         'NAME': 'DBMSProj',
-        'USER': 'postgres',
-        'PASSWORD': 'OYT@2025',
+        'USER': 'root',
+        'PASSWORD': 'Medical@2025',
         'HOST': 'localhost',
-        'PORT': '5432',
+        'PORT': 3306,
     }
 }
 
