@@ -51,7 +51,7 @@ erDiagram
         float transaction_amount
     }
 
-    USER }|..o{ USER : manages
+    USER }o..o{ USER : manages
     USER ||..o{ ORDERS : creates
     MEDICINE ||--o{ BATCH : has
     ORDERS ||--|{ ORDER_ITEMS : contains
