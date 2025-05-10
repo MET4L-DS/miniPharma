@@ -154,3 +154,28 @@ def to_orders(request):
             return JsonResponse({'error': str(e)}, status=500)
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
+@method_decorator(csrf_exempt, name='dispatch')
+class AddBatchView(APIView):
+    def post(self, request, *args, **kwargs):
+        data = request.data
+        print("Received data:", data)
+
+        required_fields = ['batch_number', 'product_id', 'expiry_date']
+        for field in required_fields:
+            if field not in data or data[field] == '':
+                return Response({'error': f'{field} is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        average_purchase_price = data.get('average_purchase_price', 0.0)  # Default to 0.0
+        selling_price = data.get('selling_price', 0.0)  # Default to 0.0
+        quantity_in_stock = data.get('quantity_in_stock', 0)
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    INSERT INTO batch (batch_number, product_id, expiry_date, average_purchase_price, selling_price, quantity_in_stock) VALUES (%s, %s, %s, %s, %s, %s)
+                """, [
+                    data['batch_number'],data['product_id'],data['expiry_date'],average_purchase_price, selling_price, quantity_in_stock]) 
+
+            return Response({'message': 'Medicine saved successfully using raw SQL!'}, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            print("Error:", str(e))
+            return Response({'error': 'Something went wrong while saving the medicine.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
