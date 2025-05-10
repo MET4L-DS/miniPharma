@@ -76,7 +76,7 @@ def register_user(request):
         try:
             data = json.loads(request.body)
             manager = data.get('manager')
-            role = data.get('role')
+            shopname = data.get('shopname')
             phone = data.get('phone')
             password = data.get('password')
 
@@ -91,9 +91,9 @@ def register_user(request):
                     return JsonResponse({'error': 'Username or phone already exists'}, status=400)
 
                 cursor.execute("""
-                    INSERT INTO register (phone, password, manager, role)
+                    INSERT INTO register (phone, password, manager, shopname)
                     VALUES (%s, %s, %s, %s)
-                """, (phone, hashed_password, manager, role))
+                """, (phone, hashed_password, manager, shopname))
 
             return JsonResponse({'message': 'User registered successfully'}, status=201)
 
