@@ -9,6 +9,7 @@ import {
 import MedicinePage from "@/pages/MedicinePage";
 import LoginPage from "@/pages/LoginPage";
 import RegistrationPage from "@/pages/RegistrationPage";
+import BillingPage from "@/pages/BillingPage";
 import { Toaster } from "sonner";
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
 				<Route path="/login" element={<LoginPage />} />
 				<Route path="/register" element={<RegistrationPage />} />
 				<Route path="/medicines" element={<MedicinePage />} />
+				<Route path="/billing" element={<BillingPage />} />
 			</Routes>
 			<Toaster richColors closeButton position="top-right" />
 		</Router>
