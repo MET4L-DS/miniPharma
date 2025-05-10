@@ -2,10 +2,7 @@ from django.urls import path
 from . import views
 from .views import AddMedicineView
 from .views import AddBatchView
-from .views import get_all_products
-from .views import register_user
-from .views import login_user
-from .views import to_orders
+
 urlpatterns = [
     
     path('add-medicine/',AddMedicineView.as_view(),name='add-medicine'),
@@ -13,5 +10,8 @@ urlpatterns = [
     path('register/',views.register_user,name='register_user'),
     path('login/',views.login_user,name="login_user"),
     path('orders/',views.to_orders,name='to_orders'),
-    path('add-batch/',AddBatchView.as_view(),name='add-batch')
+    path('add-batch/',AddBatchView.as_view(),name='add-batch'),
+    path('search-items/',views.search_items,name='search_items'),
+    path('add-invoice/',views.add_invoice_items,name='add_invoice_items'),
+
 ]
