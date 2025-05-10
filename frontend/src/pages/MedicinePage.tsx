@@ -1,3 +1,5 @@
+// file: ./src/pages/MedicinePage.tsx
+
 import { MedicineTable } from "@/components/ui/MedicineTable";
 import { AddMedicineDialog } from "@/components/ui/AddMedicineDialog";
 import { useState } from "react";

@@ -1,3 +1,5 @@
+// file: ./src/App.tsx
+
 import {
 	BrowserRouter as Router,
 	Route,

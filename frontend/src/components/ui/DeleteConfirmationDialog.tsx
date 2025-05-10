@@ -1,3 +1,5 @@
+// file: ./src/components/ui/MedicinePage.tsx
+
 import {
 	AlertDialog,
 	AlertDialogAction,
