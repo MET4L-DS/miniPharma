@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 const LoginPage = () => {
-	const [email, setEmail] = useState("");
+	const [phoneNumber, setPhoneNumber] = useState("");
 	const [password, setPassword] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
 	const navigate = useNavigate();
@@ -25,17 +25,24 @@ const LoginPage = () => {
 		e.preventDefault();
 		setIsLoading(true);
 
+		// Validate phone number format
+		if (phoneNumber.length !== 10 || !/^\d+$/.test(phoneNumber)) {
+			toast.error("Please enter a valid 10-digit phone number");
+			setIsLoading(false);
+			return;
+		}
+
 		// Simulate API call delay
 		setTimeout(() => {
 			setIsLoading(false);
 
 			// This is a dummy login - in a real app, you would validate credentials
 			// For this demo, we accept any non-empty input
-			if (email.trim() && password.trim()) {
+			if (phoneNumber.trim() && password.trim()) {
 				toast.success("Login successful!");
 				navigate("/medicines");
 			} else {
-				toast.error("Please enter both email and password");
+				toast.error("Please enter both phone number and password");
 			}
 		}, 1000);
 	};
@@ -54,13 +61,14 @@ const LoginPage = () => {
 				<form onSubmit={handleLogin} className=" grid gap-4">
 					<CardContent className="space-y-4">
 						<div className="space-y-2">
-							<Label htmlFor="email">Email</Label>
+							<Label htmlFor="phoneNumber">Phone Number</Label>
 							<Input
-								id="email"
-								type="email"
-								placeholder="your.email@example.com"
-								value={email}
-								onChange={(e) => setEmail(e.target.value)}
+								id="phoneNumber"
+								type="tel"
+								placeholder="10-digit phone number"
+								value={phoneNumber}
+								onChange={(e) => setPhoneNumber(e.target.value)}
+								maxLength={10}
 								required
 							/>
 						</div>
@@ -76,7 +84,7 @@ const LoginPage = () => {
 							/>
 						</div>
 					</CardContent>
-					<CardFooter className="space-y-4">
+					<CardFooter className="flex flex-col space-y-4">
 						<Button
 							type="submit"
 							className="w-full"
@@ -84,6 +92,16 @@ const LoginPage = () => {
 						>
 							{isLoading ? "Logging in..." : "Login"}
 						</Button>
+						<div className="text-center text-sm">
+							Don't have an account?{" "}
+							<Button
+								variant="link"
+								className="p-0"
+								onClick={() => navigate("/register")}
+							>
+								Register now
+							</Button>
+						</div>
 					</CardFooter>
 				</form>
 			</Card>
