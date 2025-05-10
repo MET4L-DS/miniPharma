@@ -6,7 +6,7 @@ import {
 	Routes,
 	Navigate,
 } from "react-router-dom";
-import MedicinePage from "@/pages/MedicinePage";
+import MedicinePage from "@/pages/medicine/MedicinePage";
 import LoginPage from "@/pages/LoginPage";
 import RegistrationPage from "@/pages/RegistrationPage";
 import BillingPage from "@/pages/BillingPage";
