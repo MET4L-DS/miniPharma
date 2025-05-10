@@ -1,4 +1,4 @@
-// src/pages/RegistrationPage.tsx
+// file: ./src/pages/RegistrationPage.tsx
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";

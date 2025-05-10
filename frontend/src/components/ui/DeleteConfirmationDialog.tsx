@@ -1,3 +1,5 @@
+// file: ./src/components/ui/DeleteConfirmationDialog.tsx
+
 import {
 	AlertDialog,
 	AlertDialogAction,

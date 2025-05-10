@@ -1,4 +1,4 @@
-// Create a new file: src/pages/LoginPage.tsx
+// file: ./src/pages/LoginPage.tsx
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";

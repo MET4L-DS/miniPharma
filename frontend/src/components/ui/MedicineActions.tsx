@@ -1,3 +1,5 @@
+// file: ./src/components/ui/MedicineActions.tsx
+
 import {
 	DropdownMenu,
 	DropdownMenuContent,

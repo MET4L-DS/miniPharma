@@ -1,3 +1,5 @@
+// file: ./src/components/ui/MedicineTable.tsx
+
 import {
 	Table,
 	TableHeader,

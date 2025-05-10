@@ -1,3 +1,5 @@
+// file: ./src/components/ui/EditMedicineDialog.tsx
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
