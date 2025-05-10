@@ -1,3 +1,5 @@
+// file: ./src/pages/BillingPage.tsx
+
 import { useState, useMemo } from "react";
 import {
 	Table,
@@ -6,360 +8,377 @@ import {
 	TableRow,
 	TableHead,
 	TableCell,
+	TableFooter,
 } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import {
 	Card,
 	CardContent,
 	CardFooter,
 	CardHeader,
 	CardTitle,
-	CardDescription,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import {
-	Dialog,
-	DialogTrigger,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogDescription,
-	DialogFooter,
-} from "@/components/ui/dialog";
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { Trash2, Plus, Receipt } from "lucide-react";
 import { toast } from "sonner";
-import {
-	AlertDialog,
-	AlertDialogTrigger,
-	AlertDialogContent,
-	AlertDialogHeader,
-	AlertDialogTitle,
-	AlertDialogDescription,
-	AlertDialogAction,
-	AlertDialogCancel,
-} from "@/components/ui/alert-dialog";
 
-interface BillingItem {
+// Define the BillItem interface
+interface BillItem {
 	id: string;
 	medicineName: string;
 	phoneNumber: string;
 	quantity: number;
 	unitPrice: number;
+	amount: number;
 }
 
+// Define the sample data for medicines
+const sampleMedicines = [
+	{ name: "Paracetamol", price: 10.0 },
+	{ name: "Amoxicillin", price: 20.5 },
+	{ name: "Metformin", price: 15.75 },
+	{ name: "Atorvastatin", price: 25.0 },
+	{ name: "Ranitidine", price: 12.5 },
+];
+
 export default function BillingPage() {
-	const [items, setItems] = useState<BillingItem[]>([
+	const [billItems, setBillItems] = useState<BillItem[]>([
 		{
 			id: "1",
 			medicineName: "Paracetamol",
-			phoneNumber: "1234567890",
-			quantity: 2,
-			unitPrice: 50,
-		},
-		{
-			id: "2",
-			medicineName: "Amoxicillin",
 			phoneNumber: "9876543210",
-			quantity: 1,
-			unitPrice: 120,
-		},
-		{
-			id: "3",
-			medicineName: "Metformin",
-			phoneNumber: "5556667777",
-			quantity: 3,
-			unitPrice: 75,
+			quantity: 2,
+			unitPrice: 10.0,
+			amount: 20.0,
 		},
 	]);
-	const [discount, setDiscount] = useState<number>(0);
-	const [deleteId, setDeleteId] = useState<string | null>(null);
-	const [paymentCash, setPaymentCash] = useState<number>(0);
-	const [paymentUPI, setPaymentUPI] = useState<number>(0);
 
-	const itemsWithAmount = useMemo(
-		() =>
-			items.map((item) => ({
-				...item,
-				totalAmount: item.quantity * item.unitPrice,
-			})),
-		[items]
-	);
+	const [discountPercentage, setDiscountPercentage] = useState(0);
+	const [newItem, setNewItem] = useState<{
+		medicineName: string;
+		phoneNumber: string;
+		quantity: number;
+	}>({
+		medicineName: "",
+		phoneNumber: "",
+		quantity: 1,
+	});
 
-	const totalPrice = useMemo(
-		() => itemsWithAmount.reduce((sum, i) => sum + i.totalAmount, 0),
-		[itemsWithAmount]
-	);
+	// Calculate the total, discount, and final amounts
+	const { totalAmount, discountAmount, finalAmount } = useMemo(() => {
+		const total = billItems.reduce((sum, item) => sum + item.amount, 0);
+		const discount = (total * discountPercentage) / 100;
+		const final = total - discount;
 
-	const finalBill = useMemo(
-		() => totalPrice - (discount / 100) * totalPrice,
-		[totalPrice, discount]
-	);
+		return {
+			totalAmount: total,
+			discountAmount: discount,
+			finalAmount: final,
+		};
+	}, [billItems, discountPercentage]);
 
-	const remainingDue = useMemo(
-		() => finalBill - paymentCash - paymentUPI,
-		[finalBill, paymentCash, paymentUPI]
-	);
-
-	const handleAdd = (item: BillingItem) => {
-		setItems((prev) => [...prev, item]);
-		toast.success("Item added successfully");
-	};
-
-	const handleDelete = (id: string) => {
-		setItems((prev) => prev.filter((i) => i.id !== id));
-		toast.success("Item deleted");
-	};
-
-	const handlePay = () => {
-		if (remainingDue !== 0) {
-			toast.error("Payment amounts must sum to final bill");
+	// Handle adding a new item
+	const handleAddItem = () => {
+		if (
+			!newItem.medicineName ||
+			!newItem.phoneNumber ||
+			newItem.quantity <= 0
+		) {
+			toast.error("Please fill all fields with valid values");
 			return;
 		}
-		toast.success("Payment successful");
-		alert(`Paid Cash: ${paymentCash}, UPI: ${paymentUPI}`);
-		setPaymentCash(0);
-		setPaymentUPI(0);
+
+		const selectedMedicine = sampleMedicines.find(
+			(med) => med.name === newItem.medicineName
+		);
+
+		if (!selectedMedicine) {
+			toast.error("Medicine not found");
+			return;
+		}
+
+		const unitPrice = selectedMedicine.price;
+		const amount = unitPrice * newItem.quantity;
+
+		const newBillItem: BillItem = {
+			id: Date.now().toString(),
+			medicineName: newItem.medicineName,
+			phoneNumber: newItem.phoneNumber,
+			quantity: newItem.quantity,
+			unitPrice: unitPrice,
+			amount: amount,
+		};
+
+		setBillItems([...billItems, newBillItem]);
+		setNewItem({
+			medicineName: "",
+			phoneNumber: "",
+			quantity: 1,
+		});
+
+		toast.success("Item added to bill");
+	};
+
+	// Handle removing an item
+	const handleRemoveItem = (id: string) => {
+		setBillItems(billItems.filter((item) => item.id !== id));
+		toast.success("Item removed from bill");
+	};
+
+	// Handle generating bill
+	const handleGenerateBill = () => {
+		if (billItems.length === 0) {
+			toast.error("Cannot generate bill with no items");
+			return;
+		}
+
+		toast.success("Bill generated successfully");
+		// In a real app, this would save the bill to a database or generate a printable receipt
 	};
 
 	return (
 		<div className="px-16 py-8">
-			<div className="flex justify-between items-center mb-6">
-				<h1 className="text-2xl font-bold">Billing Summary</h1>
-				<Dialog>
-					<DialogTrigger asChild>
-						<Button>Add Item</Button>
-					</DialogTrigger>
-					<DialogContent className="sm:max-w-md">
-						<DialogHeader>
-							<DialogTitle>Add Billing Item</DialogTitle>
-							<DialogDescription>
-								Enter details to add a new item.
-							</DialogDescription>
-						</DialogHeader>
-						<AddItemForm onAdd={handleAdd} />
-					</DialogContent>
-				</Dialog>
-			</div>
+			<h1 className="text-2xl font-bold mb-6">Billing</h1>
 
-			<Table>
-				<TableHeader>
-					<TableRow>
-						<TableHead>Medicine Name</TableHead>
-						<TableHead>Phone Number</TableHead>
-						<TableHead>Quantity</TableHead>
-						<TableHead>Unit Price</TableHead>
-						<TableHead>Total Amount</TableHead>
-						<TableHead className="text-right">Actions</TableHead>
-					</TableRow>
-				</TableHeader>
-				<TableBody>
-					{itemsWithAmount.map((item) => (
-						<TableRow key={item.id}>
-							<TableCell>{item.medicineName}</TableCell>
-							<TableCell>{item.phoneNumber}</TableCell>
-							<TableCell>{item.quantity}</TableCell>
-							<TableCell>{item.unitPrice}</TableCell>
-							<TableCell>{item.totalAmount}</TableCell>
-							<TableCell className="text-right">
-								<AlertDialog>
-									<AlertDialogTrigger asChild>
-										<Button
-											variant="ghost"
-											size="sm"
-											onClick={() => setDeleteId(item.id)}
+			<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+				{/* Add New Item Card */}
+				<Card className="col-span-1">
+					<CardHeader>
+						<CardTitle>Add Item</CardTitle>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						<div className="space-y-2">
+							<Label htmlFor="medicine">Medicine</Label>
+							<Select
+								value={newItem.medicineName}
+								onValueChange={(value) =>
+									setNewItem({
+										...newItem,
+										medicineName: value,
+									})
+								}
+							>
+								<SelectTrigger>
+									<SelectValue placeholder="Select medicine" />
+								</SelectTrigger>
+								<SelectContent>
+									{sampleMedicines.map((med) => (
+										<SelectItem
+											key={med.name}
+											value={med.name}
 										>
-											Delete
-										</Button>
-									</AlertDialogTrigger>
-									<AlertDialogContent>
-										<AlertDialogHeader>
-											<AlertDialogTitle>
-												Confirm Deletion
-											</AlertDialogTitle>
-											<AlertDialogDescription>
-												Are you sure you want to delete
-												this item?
-											</AlertDialogDescription>
-										</AlertDialogHeader>
-										<AlertDialogCancel>
-											Cancel
-										</AlertDialogCancel>
-										<AlertDialogAction
-											onClick={() => {
-												handleDelete(item.id);
-												setDeleteId(null);
-											}}
-											className="bg-red-600"
-										>
-											Delete
-										</AlertDialogAction>
-									</AlertDialogContent>
-								</AlertDialog>
-							</TableCell>
-						</TableRow>
-					))}
-				</TableBody>
-			</Table>
-
-			<Card className="w-1/3 mt-8">
-				<CardHeader>
-					<CardTitle>Totals</CardTitle>
-					<CardDescription>
-						Review your billing totals
-					</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<div className="space-y-4">
-						<div className="flex justify-between">
-							<span>Total Price:</span>
-							<span>{totalPrice}</span>
+											{med.name} (₹{med.price.toFixed(2)})
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
 						</div>
-						<div className="flex justify-between items-center">
-							<Label htmlFor="discount">Discount %:</Label>
+
+						<div className="space-y-2">
+							<Label htmlFor="phone">Phone Number</Label>
+							<Input
+								id="phone"
+								type="tel"
+								placeholder="Customer phone number"
+								value={newItem.phoneNumber}
+								onChange={(e) =>
+									setNewItem({
+										...newItem,
+										phoneNumber: e.target.value,
+									})
+								}
+							/>
+						</div>
+
+						<div className="space-y-2">
+							<Label htmlFor="quantity">Quantity</Label>
+							<Input
+								id="quantity"
+								type="number"
+								min="1"
+								value={newItem.quantity}
+								onChange={(e) =>
+									setNewItem({
+										...newItem,
+										quantity: parseInt(e.target.value) || 0,
+									})
+								}
+							/>
+						</div>
+					</CardContent>
+					<CardFooter>
+						<Button onClick={handleAddItem} className="w-full">
+							<Plus className="mr-2 h-4 w-4" /> Add Item
+						</Button>
+					</CardFooter>
+				</Card>
+
+				{/* Bill Summary Card */}
+				<Card className="col-span-1 md:col-span-2">
+					<CardHeader>
+						<CardTitle>Bill Summary</CardTitle>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						<div className="space-y-2">
+							<Label htmlFor="discount">Discount (%)</Label>
 							<Input
 								id="discount"
 								type="number"
-								value={discount}
+								min="0"
+								max="100"
+								value={discountPercentage}
 								onChange={(e) =>
-									setDiscount(parseFloat(e.target.value) || 0)
+									setDiscountPercentage(
+										Math.min(
+											100,
+											Math.max(
+												0,
+												parseInt(e.target.value) || 0
+											)
+										)
+									)
 								}
-								className="w-24"
 							/>
 						</div>
-						<div className="flex justify-between">
-							<span>Final Bill Amount:</span>
-							<span>{finalBill}</span>
+
+						<div className="space-y-1 bg-slate-50 p-4 rounded-md">
+							<div className="flex justify-between">
+								<span className="text-muted-foreground">
+									Total Amount:
+								</span>
+								<span>₹{totalAmount.toFixed(2)}</span>
+							</div>
+							<div className="flex justify-between">
+								<span className="text-muted-foreground">
+									Discount ({discountPercentage}%):
+								</span>
+								<span>₹{discountAmount.toFixed(2)}</span>
+							</div>
+							<div className="flex justify-between font-bold pt-2 border-t">
+								<span>Final Amount:</span>
+								<span>₹{finalAmount.toFixed(2)}</span>
+							</div>
 						</div>
-						<div className="flex flex-col space-y-2">
-							<div className="flex justify-between items-center">
-								<Label htmlFor="paymentCash">
-									Cash Payment:
-								</Label>
-								<Input
-									id="paymentCash"
-									type="number"
-									value={paymentCash}
-									onChange={(e) =>
-										setPaymentCash(
-											parseFloat(e.target.value) || 0
-										)
-									}
-									className="w-24"
-								/>
-							</div>
-							<div className="flex justify-between items-center">
-								<Label htmlFor="paymentUPI">UPI Payment:</Label>
-								<Input
-									id="paymentUPI"
-									type="number"
-									value={paymentUPI}
-									onChange={(e) =>
-										setPaymentUPI(
-											parseFloat(e.target.value) || 0
-										)
-									}
-									className="w-24"
-								/>
-							</div>
-							{remainingDue !== 0 && (
-								<p className="text-red-600">
-									Remaining due: {remainingDue}
-								</p>
+					</CardContent>
+					<CardFooter>
+						<Button
+							onClick={handleGenerateBill}
+							className="w-full"
+							variant="default"
+						>
+							<Receipt className="mr-2 h-4 w-4" /> Generate Bill
+						</Button>
+					</CardFooter>
+				</Card>
+			</div>
+
+			{/* Billing Table */}
+			<Card>
+				<CardHeader>
+					<CardTitle>Bill Items</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>Medicine Name</TableHead>
+								<TableHead>Phone Number</TableHead>
+								<TableHead>Quantity</TableHead>
+								<TableHead>Unit Price (₹)</TableHead>
+								<TableHead>Amount (₹)</TableHead>
+								<TableHead className="w-[50px]"></TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{billItems.length > 0 ? (
+								billItems.map((item) => (
+									<TableRow key={item.id}>
+										<TableCell>
+											{item.medicineName}
+										</TableCell>
+										<TableCell>
+											{item.phoneNumber}
+										</TableCell>
+										<TableCell>{item.quantity}</TableCell>
+										<TableCell>
+											{item.unitPrice.toFixed(2)}
+										</TableCell>
+										<TableCell>
+											{item.amount.toFixed(2)}
+										</TableCell>
+										<TableCell>
+											<Button
+												variant="ghost"
+												size="icon"
+												onClick={() =>
+													handleRemoveItem(item.id)
+												}
+											>
+												<Trash2 className="h-4 w-4 text-red-500" />
+											</Button>
+										</TableCell>
+									</TableRow>
+								))
+							) : (
+								<TableRow>
+									<TableCell
+										colSpan={6}
+										className="text-center py-4"
+									>
+										No items added to the bill
+									</TableCell>
+								</TableRow>
 							)}
-						</div>
-					</div>
+						</TableBody>
+						<TableFooter>
+							<TableRow>
+								<TableCell
+									colSpan={4}
+									className="text-right font-medium"
+								>
+									Total
+								</TableCell>
+								<TableCell className="font-bold">
+									₹{totalAmount.toFixed(2)}
+								</TableCell>
+								<TableCell></TableCell>
+							</TableRow>
+							<TableRow>
+								<TableCell
+									colSpan={4}
+									className="text-right font-medium"
+								>
+									Discount ({discountPercentage}%)
+								</TableCell>
+								<TableCell className="font-bold">
+									₹{discountAmount.toFixed(2)}
+								</TableCell>
+								<TableCell></TableCell>
+							</TableRow>
+							<TableRow>
+								<TableCell
+									colSpan={4}
+									className="text-right font-medium"
+								>
+									Final Amount
+								</TableCell>
+								<TableCell className="font-bold">
+									₹{finalAmount.toFixed(2)}
+								</TableCell>
+								<TableCell></TableCell>
+							</TableRow>
+						</TableFooter>
+					</Table>
 				</CardContent>
-				<CardFooter>
-					<Button onClick={handlePay}>Pay Now</Button>
-				</CardFooter>
 			</Card>
 		</div>
-	);
-}
-
-function AddItemForm({ onAdd }: { onAdd: (item: BillingItem) => void }) {
-	const [form, setForm] = useState<Omit<BillingItem, "id">>({
-		medicineName: "",
-		phoneNumber: "",
-		quantity: 1,
-		unitPrice: 0,
-	});
-
-	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const { name, value } = e.target;
-		setForm((prev) => ({
-			...prev,
-			[name]:
-				name === "quantity" || name === "unitPrice"
-					? parseFloat(value)
-					: value,
-		}));
-	};
-
-	const handleSubmit = (e: React.FormEvent) => {
-		e.preventDefault();
-		const newItem: BillingItem = {
-			id: Date.now().toString(),
-			...form,
-		};
-		onAdd(newItem);
-		setForm({
-			medicineName: "",
-			phoneNumber: "",
-			quantity: 1,
-			unitPrice: 0,
-		});
-	};
-
-	return (
-		<form onSubmit={handleSubmit} className="space-y-4">
-			<div className="grid grid-cols-2 gap-4">
-				<div>
-					<Label htmlFor="medicineName">Medicine Name</Label>
-					<Input
-						id="medicineName"
-						name="medicineName"
-						value={form.medicineName}
-						onChange={handleChange}
-						required
-					/>
-				</div>
-				<div>
-					<Label htmlFor="phoneNumber">Phone Number</Label>
-					<Input
-						id="phoneNumber"
-						name="phoneNumber"
-						value={form.phoneNumber}
-						onChange={handleChange}
-						required
-					/>
-				</div>
-				<div>
-					<Label htmlFor="quantity">Quantity</Label>
-					<Input
-						id="quantity"
-						name="quantity"
-						type="number"
-						value={form.quantity}
-						onChange={handleChange}
-						required
-					/>
-				</div>
-				<div>
-					<Label htmlFor="unitPrice">Unit Price</Label>
-					<Input
-						id="unitPrice"
-						name="unitPrice"
-						type="number"
-						value={form.unitPrice}
-						onChange={handleChange}
-						required
-					/>
-				</div>
-			</div>
-			<DialogFooter>
-				<Button type="submit">Add</Button>
-			</DialogFooter>
-		</form>
 	);
 }
