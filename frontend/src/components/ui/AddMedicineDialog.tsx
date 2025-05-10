@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import axios from 'axios';
 import {
 	Dialog,
 	DialogContent,
@@ -87,40 +86,31 @@ export function AddMedicineDialog({ onAddMedicine }: AddMedicineDialogProps) {
 		}));
 	};
 
-	const handleSubmit = async (e: React.FormEvent) => {
+	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
-	
+
+		// Basic validation
 		if (!formData.medicine_id || !formData.name || !formData.brand) {
 			toast.error("Please fill in all required fields.");
 			return;
 		}
-	
-		try {
-			const response = await axios.post('http://127.0.0.1:8000/api/add-medicine/', formData);
-			toast.success(response.data.message || "Medicine added successfully!");
-			
-			// Optionally, also call your parent callback if needed
-			onAddMedicine(formData);
-	
-			// Reset form
-			setFormData({
-				medicine_id: "",
-				composition_id: 0,
-				name: "",
-				brand: "",
-				hsn_code: "",
-				gst_rate: 0,
-				requires_prescription: false,
-				therapeutic_category: "",
-			});
-			setOpen(false);
-	
-		} catch (error: any) {
-			console.error(error);
-			toast.error(error.response?.data?.error || "Something went wrong.");
-		}
+
+		onAddMedicine(formData);
+		toast.success("Medicine added successfully!");
+
+		// Reset form and close dialog
+		setFormData({
+			medicine_id: "",
+			composition_id: 0,
+			name: "",
+			brand: "",
+			hsn_code: "",
+			gst_rate: 0,
+			requires_prescription: false,
+			therapeutic_category: "",
+		});
+		setOpen(false);
 	};
-	
 
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
