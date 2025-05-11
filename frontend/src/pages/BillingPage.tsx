@@ -12,7 +12,6 @@ import { PaymentModal } from "@/components/billing/PaymentModal";
 interface BillItem {
 	id: string;
 	medicineName: string;
-	phoneNumber: string;
 	quantity: number;
 	unitPrice: number;
 	amount: number;
@@ -32,7 +31,6 @@ export default function BillingPage() {
 		{
 			id: "1",
 			medicineName: "Paracetamol",
-			phoneNumber: "9876543210",
 			quantity: 2,
 			unitPrice: 10.0,
 			amount: 20.0,
@@ -40,13 +38,12 @@ export default function BillingPage() {
 	]);
 
 	const [discountPercentage, setDiscountPercentage] = useState(0);
+	const [phoneNumber, setPhoneNumber] = useState("");
 	const [newItem, setNewItem] = useState<{
 		medicineName: string;
-		phoneNumber: string;
 		quantity: number;
 	}>({
 		medicineName: "",
-		phoneNumber: "",
 		quantity: 1,
 	});
 
@@ -69,11 +66,7 @@ export default function BillingPage() {
 
 	// Handle adding a new item
 	const handleAddItem = () => {
-		if (
-			!newItem.medicineName ||
-			!newItem.phoneNumber ||
-			newItem.quantity <= 0
-		) {
+		if (!newItem.medicineName || newItem.quantity <= 0) {
 			toast.error("Please fill all fields with valid values");
 			return;
 		}
@@ -93,7 +86,6 @@ export default function BillingPage() {
 		const newBillItem: BillItem = {
 			id: Date.now().toString(),
 			medicineName: newItem.medicineName,
-			phoneNumber: newItem.phoneNumber,
 			quantity: newItem.quantity,
 			unitPrice: unitPrice,
 			amount: amount,
@@ -102,7 +94,6 @@ export default function BillingPage() {
 		setBillItems([...billItems, newBillItem]);
 		setNewItem({
 			medicineName: "",
-			phoneNumber: "",
 			quantity: 1,
 		});
 
@@ -122,6 +113,11 @@ export default function BillingPage() {
 			return;
 		}
 
+		if (!phoneNumber.trim()) {
+			toast.error("Please enter customer phone number");
+			return;
+		}
+
 		setBillGenerated(true);
 		setPaymentModalOpen(true);
 	};
@@ -134,6 +130,7 @@ export default function BillingPage() {
 		// Reset the bill for a new transaction
 		setBillItems([]);
 		setDiscountPercentage(0);
+		setPhoneNumber("");
 		setBillGenerated(false);
 	};
 
@@ -155,6 +152,8 @@ export default function BillingPage() {
 					totalAmount={totalAmount}
 					discountAmount={discountAmount}
 					finalAmount={finalAmount}
+					phoneNumber={phoneNumber}
+					setPhoneNumber={setPhoneNumber}
 					handleGenerateBill={handleGenerateBill}
 				/>
 			</div>

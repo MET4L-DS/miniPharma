@@ -10,7 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Receipt, CreditCard } from "lucide-react";
+import { Receipt, User } from "lucide-react";
 
 interface BillSummaryCardProps {
 	discountPercentage: number;
@@ -18,6 +18,8 @@ interface BillSummaryCardProps {
 	totalAmount: number;
 	discountAmount: number;
 	finalAmount: number;
+	phoneNumber: string;
+	setPhoneNumber: (value: string) => void;
 	handleGenerateBill: () => void;
 }
 
@@ -27,6 +29,8 @@ export function BillSummaryCard({
 	totalAmount,
 	discountAmount,
 	finalAmount,
+	phoneNumber,
+	setPhoneNumber,
 	handleGenerateBill,
 }: BillSummaryCardProps) {
 	return (
@@ -35,6 +39,19 @@ export function BillSummaryCard({
 				<CardTitle>Bill Summary</CardTitle>
 			</CardHeader>
 			<CardContent className="space-y-4">
+				<div className="space-y-2">
+					<Label htmlFor="phone" className="flex items-center gap-2">
+						<User className="h-4 w-4" /> Customer Phone Number
+					</Label>
+					<Input
+						id="phone"
+						type="tel"
+						placeholder="Enter customer phone number"
+						value={phoneNumber}
+						onChange={(e) => setPhoneNumber(e.target.value)}
+					/>
+				</div>
+
 				<div className="space-y-2">
 					<Label htmlFor="discount">Discount (%)</Label>
 					<Input
