@@ -46,7 +46,8 @@ erDiagram
     }
 
     PAYMENT {
-        string order_id PK,FK
+        string payment_id PK	"surrogate key, generated during transaction"
+        string order_id FK
         string payment_type "UPI, CASH"
         float transaction_amount
     }
