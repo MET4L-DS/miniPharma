@@ -1,3 +1,4 @@
+```mermaid
 erDiagram
     USER {
     string user_id PK
@@ -95,3 +96,4 @@ erDiagram
     ORDER ||--|{ PAYMENT : paid_via
     PRODUCT ||--o{ ORDER_ITEMS : sold_in
     SUPPLIER ||--o{ BATCH : supplies
+```
