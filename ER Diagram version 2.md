@@ -96,4 +96,6 @@ erDiagram
     ORDER ||--|{ PAYMENT : paid_via
     PRODUCT ||--o{ ORDER_ITEMS : sold_in
     SUPPLIER ||--o{ BATCH : supplies
+    ORDER ||--o{ RETURNS : order_returned
+    RETURNS }o..|| BATCH : batch_returned
 ```
