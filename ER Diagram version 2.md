@@ -1,6 +1,7 @@
 ```mermaid
 erDiagram
     USER {
+    direction TB
     string user_id PK
     string full_name
     string email
