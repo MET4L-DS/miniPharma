@@ -1,0 +1,324 @@
+from django.shortcuts import render
+from rest_framework.views import APIView
+# Create your views here.from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.http import HttpResponse,JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.parsers import JSONParser
+from django.db import connection,DatabaseError
+from django.utils.decorators import method_decorator
+from django.contrib.auth.hashers import make_password,check_password
+import json,logging
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AddMedicineView(APIView):
+    def post(self, request, *args, **kwargs):
+        data = request.data
+        print("Received data:", data)
+
+        required_fields = ['medicine_id', 'composition_id', 'name', 'brand']
+        for field in required_fields:
+            if field not in data or data[field] == '':
+                return Response({'error': f'{field} is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    INSERT INTO product (product_id,composition_id,generic_name,brand_name,hsn,gst,prescription_required,therapeutic_category
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """, [
+                    data['medicine_id'],data['composition_id'],data['name'],data['brand'],data.get('hsn_code', ''),data.get('gst_rate', 0),
+                    data.get('requires_prescription', False),data.get('therapeutic_category', '')
+                ])
+
+            return Response({'message': 'Medicine saved successfully using raw SQL!'}, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            print("Error:", str(e))
+            return Response({'error': 'Something went wrong while saving the medicine.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@csrf_exempt
+def get_all_products(request):
+    if request.method == "GET":
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT 
+                        *
+                    FROM product
+                """)
+                columns = [col[0] for col in cursor.description]
+                results = [
+                    dict(zip(columns, row))
+                    for row in cursor.fetchall()
+                ]
+            return JsonResponse(results, safe=False, status=200)
+
+        except DatabaseError as e:
+            return JsonResponse(
+                {"error": "Database error occurred", "details": str(e)},
+                status=500
+            )
+        except Exception as e:
+            return JsonResponse(
+                {"error": "An unexpected error occurred", "details": str(e)},
+                status=500
+            )
+
+    else:
+        return JsonResponse(
+            {"error": "Method not allowed. Use GET."},
+            status=405
+        )
+
+@csrf_exempt
+def register_user(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            manager = data.get('manager')
+            shopname = data.get('shopname')
+            phone = data.get('phone')
+            password = data.get('password')
+
+            if not all([phone, password]):
+                return JsonResponse({'error': 'All fields are required'}, status=400)
+
+            hashed_password = make_password(password)
+
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1 FROM register WHERE phone=%s", (phone,))
+                if cursor.fetchone():
+                    return JsonResponse({'error': 'Username or phone already exists'}, status=400)
+
+                cursor.execute("""
+                    INSERT INTO register (phone, password, manager, shopname)
+                    VALUES (%s, %s, %s, %s)
+                """, (phone, hashed_password, manager, shopname))
+
+            return JsonResponse({'message': 'User registered successfully'}, status=201)
+
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+@csrf_exempt
+def login_user(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            phone = data['phone']
+            password = data.get('password')
+
+            if not all([phone, password]):
+                return JsonResponse({'error': 'Both phone and password are required'}, status=400)
+
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT password FROM register WHERE phone = %s", [phone])
+                row = cursor.fetchone()
+
+                if not row:
+                    return JsonResponse({'error': 'Invalid phone or password'}, status=401)
+
+                hashed_password = row[0]
+                if check_password(password, hashed_password):
+                    return JsonResponse({'message': 'Login successful'}, status=200)
+                else:
+                    return JsonResponse({'error': 'Invalid phone or password'}, status=401)
+
+        except Exception as e:
+            logging.exception("Login error:")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+@csrf_exempt
+def to_orders(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            customer_name = data.get('customer_name')
+            customer_number = data.get('customer_number')
+            doctor_name = data.get('doctor_name')
+            total_amount = data.get('total_amount')
+            discount_percentage = data.get('discount_percentage')
+
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    INSERT INTO orders (customer_name, customer_number, doctor_name, total_amount, discount_percentage)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (customer_name, customer_number, doctor_name, total_amount, discount_percentage))
+
+            return JsonResponse({'message': 'Order successfully created'}, status=201)
+
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AddBatchView(APIView):
+    def post(self, request, *args, **kwargs):
+        data = request.data
+        print("Received data:", data)
+
+        required_fields = ['batch_number', 'product_id', 'expiry_date']
+        for field in required_fields:
+            if field not in data or data[field] == '':
+                return Response({'error': f'{field} is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        average_purchase_price = data.get('average_purchase_price', 0.0)  # Default to 0.0
+        selling_price = data.get('selling_price', 0.0)  # Default to 0.0
+        quantity_in_stock = data.get('quantity_in_stock', 0)
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    INSERT INTO batch (batch_number, product_id, expiry_date, average_purchase_price, selling_price, quantity_in_stock) VALUES (%s, %s, %s, %s, %s, %s)
+                """, [
+                    data['batch_number'],data['product_id'],data['expiry_date'],average_purchase_price, selling_price, quantity_in_stock]) 
+
+            return Response({'message': 'Medicine saved successfully using raw SQL!'}, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            print("Error:", str(e))
+            return Response({'error': 'Something went wrong while saving the medicine.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
+@csrf_exempt
+def search_items(request):
+    if request.method == "GET":
+        search_query = request.GET.get('search', '').strip()  # Get the search query from the request
+        if not search_query:
+            return JsonResponse({'error': 'Search query is required'}, status=400)
+
+        try:
+            with connection.cursor() as cursor:
+                # Use SQL LIKE for partial matching
+                cursor.execute("""
+                    SELECT product.product_id, generic_name,batch_number,expiry_date,
+                               average_purchase_price,quantity_in_stock
+                    FROM product,batch 
+                    WHERE product.product_id=batch.product_id AND
+                                generic_name LIKE %s OR brand_name LIKE %s
+                               order by expiry_date desc
+                """, [f"%{search_query}%", f"%{search_query}%"])
+                
+                # Fetch results
+                columns = [col[0] for col in cursor.description]
+                results = [
+                    dict(zip(columns, row))
+                    for row in cursor.fetchall()
+                ]
+
+            return JsonResponse(results, safe=False, status=200)
+
+        except DatabaseError as e:
+            return JsonResponse(
+                {"error": "Database error occurred", "details": str(e)},
+                status=500
+            )
+        except Exception as e:
+            return JsonResponse(
+                {"error": "An unexpected error occurred", "details": str(e)},
+                status=500
+            )
+
+    else:
+        return JsonResponse(
+            {"error": "Method not allowed. Use GET."},
+            status=405
+        )
+    
+@csrf_exempt
+def add_invoice_items(request):
+    if request.method == 'POST':
+        try:
+            # Parse the JSON data from the request body
+            data = json.loads(request.body)
+            invoice_items = data.get('items', [])  # Expecting a list of items
+
+            if not invoice_items:
+                return JsonResponse({'error': 'Invoice items are required'}, status=400)
+
+            # Validate each item in the invoice
+            for item in invoice_items:
+                if not all(key in item for key in ['product_id', 'batch_number', 'quantity', 'unit_price']):
+                    return JsonResponse({'error': 'Each item must have product_id, batch_number, unit_price, and quantity'}, status=400)
+
+            # Fetch the last order_id and increment it
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT MAX(order_id) FROM orders")
+                last_order_id = cursor.fetchone()[0]
+                 # Start from 1 if no records exist
+
+                # Insert the data into the orders_items table and update the batch table
+                for item in invoice_items:
+                    # Insert into orders_items
+                    cursor.execute("""
+                        INSERT INTO order_items (order_id, product_id, batch_number, unit_price, quantity)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, [last_order_id, item['product_id'], item['batch_number'], item['unit_price'], item['quantity']])
+
+                    # Update the batch table to reduce the quantity_in_stock
+                    cursor.execute("""
+                        UPDATE batch
+                        SET quantity_in_stock = quantity_in_stock - %s
+                        WHERE product_id = %s AND batch_number = %s
+                    """, [item['quantity'], item['product_id'], item['batch_number']])
+
+                    # Check if the quantity_in_stock becomes negative
+                    cursor.execute("""
+                        SELECT quantity_in_stock
+                        FROM batch
+                        WHERE product_id = %s AND batch_number = %s
+                    """, [item['product_id'], item['batch_number']])
+                    quantity_in_stock = cursor.fetchone()[0]
+                    if quantity_in_stock < 0:
+                        return JsonResponse({'error': f'Insufficient stock for product_id {item["product_id"]} and batch_number {item["batch_number"]}'}, status=400)
+
+            return JsonResponse({'message': 'Invoice items added successfully', 'order_id': new_order_id}, status=201)
+
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON format'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+@csrf_exempt
+def add_payment(request):
+    if request.method == 'POST':
+        try:
+            # Parse the JSON data from the request body
+            data = json.loads(request.body)
+            payments = data.get('payments', [])  # Expecting a list of payment entries
+
+            if not payments:
+                return JsonResponse({'error': 'Payments data is required'}, status=400)
+
+            # Validate each payment entry
+            for payment in payments:
+                if not all(key in payment for key in ['payment_type', 'transaction_amount']):
+                    return JsonResponse({'error': 'Each payment must have payment_type and transaction_amount'}, status=400)
+
+            # Fetch the last order_id from the orders table
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT MAX(order_id) FROM orders")
+                last_order_id = cursor.fetchone()[0]
+
+                if not last_order_id:
+                    return JsonResponse({'error': 'No orders found to associate with the payment'}, status=400)
+
+                # Insert each payment into the payment table
+                for payment in payments:
+                    cursor.execute("""
+                        INSERT INTO payment (order_id, payment_type, transaction_amount)
+                        VALUES (%s, %s, %s)
+                    """, [last_order_id, payment['payment_type'], payment['transaction_amount']])
+
+            return JsonResponse({'message': 'Payments added successfully', 'order_id': last_order_id}, status=201)
+
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON format'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
