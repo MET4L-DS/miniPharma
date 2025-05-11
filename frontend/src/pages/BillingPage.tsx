@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { AddItemCard } from "@/components/billing/AddItemCard";
 import { BillSummaryCard } from "@/components/billing/BillSummaryCard";
 import { BillItemsTable } from "@/components/billing/BillItemsTable";
+import { PaymentModal } from "@/components/billing/PaymentModal";
 
 // Define the BillItem interface
 interface BillItem {
@@ -48,6 +49,10 @@ export default function BillingPage() {
 		phoneNumber: "",
 		quantity: 1,
 	});
+
+	// Payment modal state
+	const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+	const [billGenerated, setBillGenerated] = useState(false);
 
 	// Calculate the total, discount, and final amounts
 	const { totalAmount, discountAmount, finalAmount } = useMemo(() => {
@@ -117,12 +122,23 @@ export default function BillingPage() {
 			return;
 		}
 
-		toast.success("Bill generated successfully");
-		// In a real app, this would save the bill to a database or generate a printable receipt
+		setBillGenerated(true);
+		setPaymentModalOpen(true);
+	};
+
+	// Handle payment completion
+	const handlePaymentComplete = () => {
+		toast.success("Payment completed and bill finalized");
+		// In a real app, this would save the transaction to a database
+
+		// Reset the bill for a new transaction
+		setBillItems([]);
+		setDiscountPercentage(0);
+		setBillGenerated(false);
 	};
 
 	return (
-		<div className="px-16 py-8">
+		<div className="px-4 md:px-16 py-8">
 			<h1 className="text-2xl font-bold mb-6">Billing</h1>
 
 			<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -150,6 +166,13 @@ export default function BillingPage() {
 				discountPercentage={discountPercentage}
 				discountAmount={discountAmount}
 				finalAmount={finalAmount}
+			/>
+
+			<PaymentModal
+				open={paymentModalOpen}
+				onOpenChange={setPaymentModalOpen}
+				finalAmount={finalAmount}
+				onPaymentComplete={handlePaymentComplete}
 			/>
 		</div>
 	);
