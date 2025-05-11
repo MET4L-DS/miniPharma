@@ -17,26 +17,10 @@ import {
 	SelectContent,
 	SelectItem,
 } from "@/components/ui/select";
+import { Medicine, MedicineTableProps } from "@/types/medicine";
 import { MedicineActions } from "./MedicineActions";
-import { EditMedicineDialog } from "./EditMedicineDialog";
-import { DeleteConfirmationDialog } from "./DeleteConfirmationDialog";
-
-interface Medicine {
-	medicine_id: string;
-	composition_id: number;
-	name: string;
-	brand: string;
-	hsn_code: string;
-	gst_rate: number;
-	requires_prescription: boolean;
-	therapeutic_category: string;
-}
-
-interface MedicineTableProps {
-	medicines: Medicine[];
-	onUpdate: (updatedMedicine: Medicine) => void;
-	onDelete: (id: string) => void;
-}
+import { EditMedicineDialog } from "../dialogs/EditMedicineDialog";
+import { DeleteConfirmationDialog } from "../dialogs/DeleteConfirmationDialog";
 
 export function MedicineTable({
 	medicines,
