@@ -1,7 +1,5 @@
 ```mermaid
 erDiagram
-    direction BT
-    direction RL
     USER {
     string user_id PK
     string full_name
