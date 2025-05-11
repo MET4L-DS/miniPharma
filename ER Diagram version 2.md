@@ -2,6 +2,7 @@
 erDiagram
     USER {
     direction TB
+    direction LR
     string user_id PK
     string full_name
     string email
