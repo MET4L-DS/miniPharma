@@ -283,3 +283,42 @@ def add_invoice_items(request):
             return JsonResponse({'error': str(e)}, status=500)
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
+@csrf_exempt
+def add_payment(request):
+    if request.method == 'POST':
+        try:
+            # Parse the JSON data from the request body
+            data = json.loads(request.body)
+            payments = data.get('payments', [])  # Expecting a list of payment entries
+
+            if not payments:
+                return JsonResponse({'error': 'Payments data is required'}, status=400)
+
+            # Validate each payment entry
+            for payment in payments:
+                if not all(key in payment for key in ['payment_type', 'transaction_amount']):
+                    return JsonResponse({'error': 'Each payment must have payment_type and transaction_amount'}, status=400)
+
+            # Fetch the last order_id from the orders table
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT MAX(order_id) FROM orders")
+                last_order_id = cursor.fetchone()[0]
+
+                if not last_order_id:
+                    return JsonResponse({'error': 'No orders found to associate with the payment'}, status=400)
+
+                # Insert each payment into the payment table
+                for payment in payments:
+                    cursor.execute("""
+                        INSERT INTO payment (order_id, payment_type, transaction_amount)
+                        VALUES (%s, %s, %s)
+                    """, [last_order_id, payment['payment_type'], payment['transaction_amount']])
+
+            return JsonResponse({'message': 'Payments added successfully', 'order_id': last_order_id}, status=201)
+
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON format'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
