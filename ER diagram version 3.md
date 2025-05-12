@@ -125,7 +125,7 @@ erDiagram
     SHOP ||--o{ USER : employs
     SHOP ||--o{ PRODUCT : stocks
     SHOP ||--o{ BATCH : holds
-    SHOP ||--o{ SALE : conducts
+    SHOP ||--o{ ORDER : conducts
     USER }o..o{ USER : manages
     USER ||--o{ ORDER : handles
     CUSTOMER ||--o{ ORDER : makes
