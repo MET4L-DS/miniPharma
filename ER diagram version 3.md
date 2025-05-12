@@ -83,7 +83,7 @@ erDiagram
 	}
 
     ORDER_ITEMS {
-        string sale_item_id PK
+        string order_item_id PK
         string shop_id FK		"references SHOP(shop_id)"
         string order_id FK		"references ORDER(order_id)"
         string product_id FK	"references PRODUCT(product_id)"
