@@ -55,7 +55,7 @@ erDiagram
 	
 	ORDER {
 		string order_id PK
-		string user_id PK, FK	
+		string user_id FK	"references USER(user_id)"
 		string customer_id FK	"references CUSTOMER(customer_id)"
 		date sale_date
 		decimal total_amount
@@ -81,8 +81,8 @@ erDiagram
     
     RETURNS {
 		string return_id PK
-		string order_id FK
-		string batch_id FK
+		string order_id FK	"references ORDER(order_id)"
+		string batch_id FK	"references BATCH(batch_id)"
 		string quantity_returned
 		string reason
 		datetime return_date
