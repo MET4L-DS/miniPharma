@@ -25,7 +25,7 @@ class AddMedicineView(APIView):
         try:
             with connection.cursor() as cursor:
                 cursor.execute("""
-                    INSERT INTO product (product_id,composition_id,generic_name,brand_name,hsn,gst,prescription_required,therapeutic_category
+                    INSERT INTO api_product (product_id,composition_id,generic_name,brand_name,hsn,gst,prescription_required,therapeutic_category
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """, [
                     data['medicine_id'],data['composition_id'],data['name'],data['brand'],data.get('hsn_code', ''),data.get('gst_rate', 0),
@@ -46,7 +46,7 @@ def get_all_products(request):
                 cursor.execute("""
                     SELECT 
                         *
-                    FROM product
+                    FROM api_product
                 """)
                 columns = [col[0] for col in cursor.description]
                 results = [
@@ -88,12 +88,12 @@ def register_user(request):
             hashed_password = make_password(password)
 
             with connection.cursor() as cursor:
-                cursor.execute("SELECT 1 FROM register WHERE phone=%s", (phone,))
+                cursor.execute("SELECT 1 FROM api_register WHERE phone=%s", (phone,))
                 if cursor.fetchone():
                     return JsonResponse({'error': 'Username or phone already exists'}, status=400)
 
                 cursor.execute("""
-                    INSERT INTO register (phone, password, manager, shopname)
+                    INSERT INTO api_register (phone, password, manager, shopname)
                     VALUES (%s, %s, %s, %s)
                 """, (phone, hashed_password, manager, shopname))
 
@@ -116,7 +116,7 @@ def login_user(request):
                 return JsonResponse({'error': 'Both phone and password are required'}, status=400)
 
             with connection.cursor() as cursor:
-                cursor.execute("SELECT password FROM register WHERE phone = %s", [phone])
+                cursor.execute("SELECT password FROM api_register WHERE phone = %s", [phone])
                 row = cursor.fetchone()
 
                 if not row:
@@ -147,7 +147,7 @@ def to_orders(request):
 
             with connection.cursor() as cursor:
                 cursor.execute("""
-                    INSERT INTO orders (customer_name, customer_number, doctor_name, total_amount, discount_percentage)
+                    INSERT INTO api_orders (customer_name, customer_number, doctor_name, total_amount, discount_percentage)
                     VALUES (%s, %s, %s, %s, %s)
                 """, (customer_name, customer_number, doctor_name, total_amount, discount_percentage))
 
@@ -174,7 +174,7 @@ class AddBatchView(APIView):
         try:
             with connection.cursor() as cursor:
                 cursor.execute("""
-                    INSERT INTO batch (batch_number, product_id, expiry_date, average_purchase_price, selling_price, quantity_in_stock) VALUES (%s, %s, %s, %s, %s, %s)
+                    INSERT INTO api_batch (batch_number, product_id, expiry_date, average_purchase_price, selling_price, quantity_in_stock) VALUES (%s, %s, %s, %s, %s, %s)
                 """, [
                     data['batch_number'],data['product_id'],data['expiry_date'],average_purchase_price, selling_price, quantity_in_stock]) 
 
@@ -196,7 +196,7 @@ def search_items(request):
                 cursor.execute("""
                     SELECT product.product_id, generic_name,batch_number,expiry_date,
                                average_purchase_price,quantity_in_stock
-                    FROM product,batch 
+                    FROM api_product product,api_batch batch 
                     WHERE product.product_id=batch.product_id AND
                                 generic_name LIKE %s OR brand_name LIKE %s
                                order by expiry_date desc
@@ -246,7 +246,7 @@ def add_invoice_items(request):
 
             # Fetch the last order_id and increment it
             with connection.cursor() as cursor:
-                cursor.execute("SELECT MAX(order_id) FROM orders")
+                cursor.execute("SELECT MAX(order_id) FROM api_orders")
                 last_order_id = cursor.fetchone()[0]
                  # Start from 1 if no records exist
 
@@ -254,21 +254,20 @@ def add_invoice_items(request):
                 for item in invoice_items:
                     # Insert into orders_items
                     cursor.execute("""
-                        INSERT INTO order_items (order_id, product_id, batch_number, unit_price, quantity)
+                        INSERT INTO api_order_items (order_id, product_id, batch_number, unit_price, quantity)
                         VALUES (%s, %s, %s, %s, %s)
                     """, [last_order_id, item['product_id'], item['batch_number'], item['unit_price'], item['quantity']])
 
                     # Update the batch table to reduce the quantity_in_stock
                     cursor.execute("""
-                        UPDATE batch
+                        UPDATE api_batch
                         SET quantity_in_stock = quantity_in_stock - %s
                         WHERE product_id = %s AND batch_number = %s
                     """, [item['quantity'], item['product_id'], item['batch_number']])
 
-                    # Check if the quantity_in_stock becomes negative
                     cursor.execute("""
                         SELECT quantity_in_stock
-                        FROM batch
+                        FROM api_batch
                         WHERE product_id = %s AND batch_number = %s
                     """, [item['product_id'], item['batch_number']])
                     quantity_in_stock = cursor.fetchone()[0]
@@ -301,7 +300,7 @@ def add_payment(request):
 
             # Fetch the last order_id from the orders table
             with connection.cursor() as cursor:
-                cursor.execute("SELECT MAX(order_id) FROM orders")
+                cursor.execute("SELECT MAX(order_id) FROM api_orders")
                 last_order_id = cursor.fetchone()[0]
 
                 if not last_order_id:
@@ -310,7 +309,7 @@ def add_payment(request):
                 # Insert each payment into the payment table
                 for payment in payments:
                     cursor.execute("""
-                        INSERT INTO payment (order_id, payment_type, transaction_amount)
+                        INSERT INTO api_payment (order_id, payment_type, transaction_amount)
                         VALUES (%s, %s, %s)
                     """, [last_order_id, payment['payment_type'], payment['transaction_amount']])
 

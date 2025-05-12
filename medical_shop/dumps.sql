@@ -184,34 +184,6 @@ LOCK TABLES `auth_user_user_permissions` WRITE;
 /*!40000 ALTER TABLE `auth_user_user_permissions` ENABLE KEYS */;
 UNLOCK TABLES;
 
---
--- Table structure for table `batch`
---
-
-DROP TABLE IF EXISTS `batch`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `batch` (
-  `batch_number` varchar(10) NOT NULL,
-  `product_id` varchar(10) NOT NULL,
-  `expiry_date` date NOT NULL,
-  `average_purchase_price` decimal(10,2) DEFAULT NULL,
-  `selling_price` decimal(10,2) NOT NULL,
-  `quantity_in_stock` int DEFAULT '0',
-  PRIMARY KEY (`batch_number`,`product_id`),
-  KEY `product_id` (`product_id`),
-  CONSTRAINT `batch_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `product` (`product_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `batch`
---
-
-LOCK TABLES `batch` WRITE;
-/*!40000 ALTER TABLE `batch` DISABLE KEYS */;
-/*!40000 ALTER TABLE `batch` ENABLE KEYS */;
-UNLOCK TABLES;
 
 --
 -- Table structure for table `django_admin_log`
@@ -323,6 +295,36 @@ LOCK TABLES `django_session` WRITE;
 /*!40000 ALTER TABLE `django_session` DISABLE KEYS */;
 /*!40000 ALTER TABLE `django_session` ENABLE KEYS */;
 UNLOCK TABLES;
+
+--
+-- Table structure for table `batch`
+--
+
+DROP TABLE IF EXISTS `batch`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `batch` (
+  `batch_number` varchar(10) NOT NULL,
+  `product_id` varchar(10) NOT NULL,
+  `expiry_date` date NOT NULL,
+  `average_purchase_price` decimal(10,2) DEFAULT NULL,
+  `selling_price` decimal(10,2) NOT NULL,
+  `quantity_in_stock` int DEFAULT '0',
+  PRIMARY KEY (`batch_number`,`product_id`),
+  KEY `product_id` (`product_id`),
+  CONSTRAINT `batch_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `product` (`product_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `batch`
+--
+
+LOCK TABLES `batch` WRITE;
+/*!40000 ALTER TABLE `batch` DISABLE KEYS */;
+/*!40000 ALTER TABLE `batch` ENABLE KEYS */;
+UNLOCK TABLES;
+
 
 --
 -- Table structure for table `order_items`
