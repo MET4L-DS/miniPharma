@@ -1,16 +1,16 @@
 # Software Requirements Specification (SRS) for Pharmacy Management System
 
-This SRS document provides an overview of requirements for a web-based Pharmacy Management System for medicine shops in India. It aims for seamless operations, enhanced inventory management, improved customer experience, and optimized business processes through technology.
+This SRS document provides an overview of requirements for a web-based Pharmacy Management System for medicine shops in India. The goal is to provide seamless operations through enhanced inventory management, improved customer experience, and optimized business processes through technology.
 
 ## 1. Introduction
 
 ### 1.1 Purpose
 
-The purpose of this document is to define the functional and non-functional requirements for a Pharmacy Management System for medical stores in India. This web application will manage billing, inventory, alternative medicine suggestions, and other pharmacy operations to improve efficiency and customer service.
+The purpose of this document is to define the functional and non-functional requirements for medical stores in India. This web application will manage billing, inventory, alternative medicine suggestions, and other pharmacy operations to improve overall aura of shops.
 
 ### 1.2 Product Scope
 
-The Pharmacy Management System is designed to improve accuracy, enhance safety, and increase efficiency in pharmaceutical stores. It will automate key pharmacy operations including billing, inventory management, sales prediction, and customer relationship management. The system will help pharmacists and store managers make informed decisions through data-driven insights and alerts.
+It is designed to improve accuracy, enhance safety, and increase efficiency in medical stores. It will automate key pharmacy operations including billing, inventory management, sales prediction, and customer relationship management. The system will help pharmacists and store managers make informed decisions through data-driven insights and alerts.
 
 ### 1.3 Intended Audience
 
@@ -30,17 +30,17 @@ The system will be a web-based application with a centralized database allowing 
 
 ### 2.1 Product Perspective
 
-The Pharmacy Management System will be an independent web application specifically designed for Indian pharmaceutical retailers. The system will operate within the regulatory framework of Indian pharmaceutical laws and GST requirements.
+The System will be an independent web application specifically designed for Indian medical retailers. The system will operate within the regulatory framework of Indian Pharmaceutical Laws and GST requirements.
 
 ### 2.2 User Classes and Characteristics
 
 #### 2.2.1 Pharmacists/Store Staff
 
-These users will handle day-to-day operations including billing, inventory checks, and customer interactions. They require a simple, intuitive interface with quick access to medicine information and billing functions.
+Users will handle day-to-day operations including billing, inventory checks, and customer interactions. They require a simple interface with quick access to medicine information and billing functions.
 
 #### 2.2.2 Store Managers/Owners
 
-These users need comprehensive reports, sales predictions, stock management capabilities, and access to all system functions. They will use the system for strategic decision-making and business optimization.
+Users need reports, sales predictions, stock management capabilities, and access to various other functions. They will use the system for strategic decision-making and business optimization.
 
 #### 2.2.3 System Administrators
 
@@ -50,9 +50,9 @@ Technical users who will manage system settings, user accounts, access permissio
 
 - Web-based application accessible via standard browsers
 - Compatible with desktop computers, tablets, and mobile devices
-- Supports concurrent multi-user access
+- Supports con-current multi-user access
 - Operates with reliable online/offline connectivity
-- Must comply with Indian pharmaceutical regulations
+- Must comply with Indian Pharmaceutical Regulations
 - Must implement GST taxation rules
 
 
@@ -73,7 +73,7 @@ The system shall provide a comprehensive billing module for processing customer 
 5. Facility to apply discounts based on loyalty points, promotions, or expiry dates
 6. Option to record prescription details for prescription medicines
 7. Bill search and retrieval functionality
-8. Option to email/print bills to customers [OPTIONAL]
+8. Option to email/print bills to customers
 
 ### 3.2 Inventory Management
 
@@ -99,7 +99,7 @@ The system shall maintain detailed records of all medicines and medical products
 
 #### 3.3.1 Description
 
-The system shall suggest alternative medicines when a requested medicine is out of stock, based on chemical composition and therapeutic equivalence.
+The system shall suggest alternative medicines when a requested medicine is out of stock, based on chemical composition and similarity index for medicine.
 
 #### 3.3.2 Functional Requirements
 
