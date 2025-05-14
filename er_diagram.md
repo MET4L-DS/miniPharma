@@ -3,8 +3,8 @@ erDiagram
     USER {
     string phone_number PK
     string password_hash
-    string manager FK "references USER(phone_number)"
-    string role "default Manager"
+    string manager FK "references USER"
+    string role
     }
 
     MEDICINE {
@@ -13,16 +13,16 @@ erDiagram
         string brand
         string hsn_code
         string therapeutic_category
-        float gst_rate "default 12%"
-        bool requires_prescription "default yes"
-        bool is_discontinued "default false"
+        float gst_rate
+        bool requires_prescription
+        bool is_discontinued
     }
 
     BATCH {
         string batch_number PK
         string medicine_id PK,FK
         date expiry_date
-        decimal selling_price "DEFAULT AT MRP"
+        decimal selling_price "AT MRP"
         int quantity_in_stock
         decimal average_purchase_price
     }
@@ -46,16 +46,15 @@ erDiagram
     }
 
     PAYMENT {
-        string payment_id PK	"surrogate key, generated during transaction"
-        string order_id FK
+        string order_id PK, FK
         string payment_type "UPI, CASH"
         float transaction_amount
     }
 
-    USER }o..o{ USER : manages
-    USER ||..o{ ORDERS : creates
-    MEDICINE ||--o{ BATCH : has
-    ORDERS ||--|{ ORDER_ITEMS : contains
-    ORDERS ||--|{ PAYMENT : paid_via
+    USER }o--o{ USER : manages
+    USER ||--o{ ORDERS : creates
+    MEDICINE ||..o{ BATCH : has
+    ORDERS ||..|{ ORDER_ITEMS : contains
+    ORDERS ||..|{ PAYMENT : paid_via
     ORDER_ITEMS ||..|{ BATCH : includes
 ```
