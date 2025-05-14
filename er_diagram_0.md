@@ -3,8 +3,8 @@ erDiagram
     USER {
         string phone_number PK
         string password_hash
-        string manager FK "references USER(phone_number)"
-        string role "default Manager"
+        string manager FK "references USER"
+        string role
     }
 
     MEDICINE {
@@ -13,9 +13,9 @@ erDiagram
         string brand
         string hsn_code
         string therapeutic_category
-        float gst_rate "default 12%"
-        bool requires_prescription "default yes"
-        bool is_discontinued "default false"
+        float gst_rate
+        bool requires_prescription
+        bool is_discontinued
     }
 
     CHEMICAL_COMPOSITION {
@@ -33,7 +33,7 @@ erDiagram
         string batch_number PK
         string medicine_id PK,FK
         date expiry_date
-        decimal selling_price "DEFAULT AT MRP"
+        decimal selling_price "AT MRP"
         int quantity_in_stock
         decimal average_purchase_price
     }
@@ -56,7 +56,6 @@ erDiagram
     }
 
     PAYMENT {
-        string payment_id PK "surrogate key"
         string order_id FK
         string payment_type "UPI, CASH"
         float transaction_amount
@@ -93,19 +92,17 @@ erDiagram
     USER ||--o{ USER : manages
     USER ||--o{ ORDERS : creates
 
-    MEDICINE ||--o{ BATCH : has
-    MEDICINE ||--o{ CONTAINS : contains
-    CHEMICAL_COMPOSITION ||--o{ CONTAINS : included_in
+    MEDICINE ||..o{ BATCH : has
+    MEDICINE ||..o{ CONTAINS : contains
+    CHEMICAL_COMPOSITION ||..o{ CONTAINS : included_in
 
-    ORDERS ||--|{ ORDER_ITEMS : contains
-    ORDERS ||--|{ PAYMENT : paid_with
+    ORDERS ||..|{ ORDER_ITEMS : contains
+    ORDERS ||..|{ PAYMENT : paid_with
     ORDERS }|--|| CUSTOMER : for
     ORDERS }|--|| DOCTOR : prescribed_by
 
     ORDER_ITEMS }|--|| BATCH : from
     ORDER_ITEMS }|--|| MEDICINE : for
-
-    PAYMENT }|--|| ORDERS : for
 
     PRESCRIPTION }|--|| CUSTOMER : issued_to
     PRESCRIPTION }|--|| DOCTOR : issued_by
