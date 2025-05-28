@@ -21,7 +21,7 @@ const LoginPage = () => {
 	const [isLoading, setIsLoading] = useState(false);
 	const navigate = useNavigate();
 
-	const handleLogin = (e: React.FormEvent) => {
+	const handleLogin = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setIsLoading(true);
 
@@ -32,19 +32,40 @@ const LoginPage = () => {
 			return;
 		}
 
-		// Simulate API call delay
-		setTimeout(() => {
+		if (!phoneNumber.trim() || !password.trim()) {
+			toast.error("Please enter both phone number and password");
 			setIsLoading(false);
+			return;
+		}
 
-			// This is a dummy login - in a real app, you would validate credentials
-			// For this demo, we accept any non-empty input
-			if (phoneNumber.trim() && password.trim()) {
+		try {
+			const response = await fetch("/api/login/", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					phone: phoneNumber,
+					password: password,
+				}),
+			});
+
+			const data = await response.json();
+
+			if (response.ok) {
 				toast.success("Login successful!");
+				// Store user info if needed
+				localStorage.setItem("userPhone", phoneNumber);
 				navigate("/medicines");
 			} else {
-				toast.error("Please enter both phone number and password");
+				toast.error(data.error || "Login failed");
 			}
-		}, 1000);
+		} catch (error) {
+			console.error("Login error:", error);
+			toast.error("Network error. Please try again.");
+		} finally {
+			setIsLoading(false);
+		}
 	};
 
 	return (
@@ -58,7 +79,7 @@ const LoginPage = () => {
 						Enter your credentials to access the Medicine Dashboard
 					</CardDescription>
 				</CardHeader>
-				<form onSubmit={handleLogin} className=" grid gap-4">
+				<form onSubmit={handleLogin} className="grid gap-4">
 					<CardContent className="space-y-4">
 						<div className="space-y-2">
 							<Label htmlFor="phoneNumber">Phone Number</Label>

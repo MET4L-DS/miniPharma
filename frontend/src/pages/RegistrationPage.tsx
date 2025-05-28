@@ -26,12 +26,12 @@ const RegistrationPage = () => {
 	const [phoneNumber, setPhoneNumber] = useState("");
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
-	const [role, setRole] = useState("Manager");
-	const [managerPhone, setManagerPhone] = useState("");
+	const [shopName, setShopName] = useState("");
+	const [manager, setManager] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
 	const navigate = useNavigate();
 
-	const handleRegister = (e: React.FormEvent) => {
+	const handleRegister = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setIsLoading(true);
 
@@ -48,18 +48,40 @@ const RegistrationPage = () => {
 			return;
 		}
 
-		if (role !== "Manager" && !managerPhone) {
-			toast.error("Please provide your manager's phone number");
+		if (!phoneNumber.trim() || !password.trim() || !shopName.trim()) {
+			toast.error("Please fill in all required fields");
 			setIsLoading(false);
 			return;
 		}
 
-		// Simulate API call delay
-		setTimeout(() => {
+		try {
+			const response = await fetch("/api/register/", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					phone: phoneNumber,
+					password: password,
+					shopname: shopName,
+					manager: manager || null, // Send null if manager field is empty
+				}),
+			});
+
+			const data = await response.json();
+
+			if (response.ok) {
+				toast.success("Registration successful!");
+				navigate("/login");
+			} else {
+				toast.error(data.error || "Registration failed");
+			}
+		} catch (error) {
+			console.error("Registration error:", error);
+			toast.error("Network error. Please try again.");
+		} finally {
 			setIsLoading(false);
-			toast.success("Registration successful!");
-			navigate("/login");
-		}, 1000);
+		}
 	};
 
 	return (
@@ -76,7 +98,7 @@ const RegistrationPage = () => {
 				<form onSubmit={handleRegister}>
 					<CardContent className="space-y-4">
 						<div className="space-y-2">
-							<Label htmlFor="phoneNumber">Phone Number</Label>
+							<Label htmlFor="phoneNumber">Phone Number *</Label>
 							<Input
 								id="phoneNumber"
 								type="tel"
@@ -92,7 +114,30 @@ const RegistrationPage = () => {
 						</div>
 
 						<div className="space-y-2">
-							<Label htmlFor="password">Password</Label>
+							<Label htmlFor="shopName">Shop Name *</Label>
+							<Input
+								id="shopName"
+								type="text"
+								placeholder="Enter your shop name"
+								value={shopName}
+								onChange={(e) => setShopName(e.target.value)}
+								required
+							/>
+						</div>
+
+						<div className="space-y-2">
+							<Label htmlFor="manager">Manager</Label>
+							<Input
+								id="manager"
+								type="text"
+								placeholder="Manager name (optional)"
+								value={manager}
+								onChange={(e) => setManager(e.target.value)}
+							/>
+						</div>
+
+						<div className="space-y-2">
+							<Label htmlFor="password">Password *</Label>
 							<Input
 								id="password"
 								type="password"
@@ -105,7 +150,7 @@ const RegistrationPage = () => {
 
 						<div className="space-y-2">
 							<Label htmlFor="confirmPassword">
-								Confirm Password
+								Confirm Password *
 							</Label>
 							<Input
 								id="confirmPassword"
@@ -118,39 +163,6 @@ const RegistrationPage = () => {
 								required
 							/>
 						</div>
-
-						<div className="space-y-2">
-							<Label htmlFor="role">Role</Label>
-							<Select value={role} onValueChange={setRole}>
-								<SelectTrigger>
-									<SelectValue placeholder="Select your role" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="Manager">
-										Manager
-									</SelectItem>
-									<SelectItem value="Staff">Staff</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
-
-						{role !== "Manager" && (
-							<div className="space-y-2">
-								<Label htmlFor="managerPhone">
-									Manager's Phone Number
-								</Label>
-								<Input
-									id="managerPhone"
-									type="tel"
-									placeholder="10-digit phone number"
-									value={managerPhone}
-									onChange={(e) =>
-										setManagerPhone(e.target.value)
-									}
-									maxLength={10}
-								/>
-							</div>
-						)}
 					</CardContent>
 					<CardFooter className="flex flex-col space-y-4">
 						<Button

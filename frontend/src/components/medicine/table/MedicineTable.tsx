@@ -1,4 +1,4 @@
-// file: ./src/components/ui/MedicineTable.tsx
+// file: ./src/components/medicine/table/MedicineTable.tsx
 
 import {
 	Table,

@@ -1,4 +1,4 @@
-// file: ./src/components/ui/AddMedicineDialog.tsx
+// file: ./src/components/medicine/dialogs/AddMedicineDialog.tsx
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";

@@ -1,4 +1,4 @@
-// file: ./src/components/ui/MedicineActions.tsx
+// file: ./src/components/medicine/table/MedicineActions.tsx
 
 import {
 	DropdownMenu,

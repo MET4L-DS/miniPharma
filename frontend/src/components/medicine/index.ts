@@ -1,3 +1,4 @@
+// file: ./src/components/medicine/index.ts
 export * from "./dialogs/AddMedicineDialog";
 export * from "./dialogs/EditMedicineDialog";
 export * from "./dialogs/DeleteConfirmationDialog";

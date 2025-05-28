@@ -1,4 +1,4 @@
-// file: ./src/components/ui/DeleteConfirmationDialog.tsx
+// file: ./src/components/medicine/dialogs/DeleteConfirmationDialog.tsx
 
 import {
 	AlertDialog,
