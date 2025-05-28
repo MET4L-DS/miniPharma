@@ -20,24 +20,14 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Medicine } from "@/types/medicine";
 import { toast } from "sonner";
-
-interface Medicine {
-	medicine_id: string;
-	composition_id: number;
-	name: string;
-	brand: string;
-	hsn_code: string;
-	gst_rate: number;
-	requires_prescription: boolean;
-	therapeutic_category: string;
-}
 
 interface EditMedicineDialogProps {
 	isOpen: boolean;
 	onClose: () => void;
 	medicine: Medicine | null;
-	onSave: (updatedMedicine: Medicine) => void;
+	onSave: (updatedMedicine: Medicine) => Promise<void>;
 }
 
 const categories = [
@@ -68,13 +58,34 @@ export function EditMedicineDialog({
 		requires_prescription: false,
 		therapeutic_category: "",
 	});
+	const [isLoading, setIsLoading] = useState(false);
 
 	// Set form data when medicine changes
 	useEffect(() => {
-		if (medicine) {
-			setFormData(medicine);
+		if (medicine && isOpen) {
+			setFormData({ ...medicine });
 		}
-	}, [medicine]);
+	}, [medicine, isOpen]);
+
+	// Reset form when dialog closes
+	useEffect(() => {
+		if (!isOpen) {
+			setIsLoading(false);
+			// Reset form data after a small delay to prevent flash
+			setTimeout(() => {
+				setFormData({
+					medicine_id: "",
+					composition_id: 0,
+					name: "",
+					brand: "",
+					hsn_code: "",
+					gst_rate: 0,
+					requires_prescription: false,
+					therapeutic_category: "",
+				});
+			}, 150);
+		}
+	}, [isOpen]);
 
 	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const { name, value } = e.target;
@@ -82,7 +93,7 @@ export function EditMedicineDialog({
 			...prev,
 			[name]:
 				name === "composition_id" || name === "gst_rate"
-					? parseFloat(value)
+					? parseFloat(value) || 0
 					: value,
 		}));
 	};
@@ -101,8 +112,9 @@ export function EditMedicineDialog({
 		}));
 	};
 
-	const handleSubmit = (e: React.FormEvent) => {
+	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
+		e.stopPropagation();
 
 		// Basic validation
 		if (!formData.medicine_id || !formData.name || !formData.brand) {
@@ -110,14 +122,55 @@ export function EditMedicineDialog({
 			return;
 		}
 
-		onSave(formData);
-		toast.success("Medicine updated successfully!");
-		onClose();
+		if (formData.composition_id <= 0) {
+			toast.error("Composition ID must be a positive number.");
+			return;
+		}
+
+		try {
+			setIsLoading(true);
+			await onSave(formData);
+			// Don't call onClose here - let the parent handle it after successful save
+		} catch (error) {
+			// Error handling is done in parent component
+			console.error("Failed to update medicine:", error);
+		} finally {
+			setIsLoading(false);
+		}
 	};
 
+	const handleClose = () => {
+		if (!isLoading) {
+			onClose();
+		}
+	};
+
+	const handleOpenChange = (open: boolean) => {
+		if (!open && !isLoading) {
+			onClose();
+		}
+	};
+
+	// Don't render the dialog content if medicine is null
+	if (!medicine) {
+		return null;
+	}
+
 	return (
-		<Dialog open={isOpen} onOpenChange={onClose}>
-			<DialogContent className="sm:max-w-[500px]">
+		<Dialog open={isOpen} onOpenChange={handleOpenChange}>
+			<DialogContent
+				className="sm:max-w-[500px]"
+				onPointerDownOutside={(e) => {
+					if (isLoading) {
+						e.preventDefault();
+					}
+				}}
+				onEscapeKeyDown={(e) => {
+					if (isLoading) {
+						e.preventDefault();
+					}
+				}}
+			>
 				<DialogHeader>
 					<DialogTitle>Edit Medicine</DialogTitle>
 					<DialogDescription>
@@ -127,11 +180,14 @@ export function EditMedicineDialog({
 				<form onSubmit={handleSubmit}>
 					<div className="grid gap-4 py-4">
 						<div className="grid grid-cols-4 items-center gap-4">
-							<Label htmlFor="medicine_id" className="text-right">
+							<Label
+								htmlFor="edit_medicine_id"
+								className="text-right"
+							>
 								Medicine ID*
 							</Label>
 							<Input
-								id="medicine_id"
+								id="edit_medicine_id"
 								name="medicine_id"
 								value={formData.medicine_id}
 								onChange={handleInputChange}
@@ -142,76 +198,90 @@ export function EditMedicineDialog({
 						</div>
 						<div className="grid grid-cols-4 items-center gap-4">
 							<Label
-								htmlFor="composition_id"
+								htmlFor="edit_composition_id"
 								className="text-right"
 							>
 								Composition ID*
 							</Label>
 							<Input
-								id="composition_id"
+								id="edit_composition_id"
 								name="composition_id"
 								type="number"
+								min="1"
 								value={formData.composition_id || ""}
 								onChange={handleInputChange}
 								className="col-span-3"
 								required
+								disabled={isLoading}
 							/>
 						</div>
 						<div className="grid grid-cols-4 items-center gap-4">
-							<Label htmlFor="name" className="text-right">
+							<Label htmlFor="edit_name" className="text-right">
 								Name*
 							</Label>
 							<Input
-								id="name"
+								id="edit_name"
 								name="name"
 								value={formData.name}
 								onChange={handleInputChange}
 								className="col-span-3"
 								required
+								disabled={isLoading}
 							/>
 						</div>
 						<div className="grid grid-cols-4 items-center gap-4">
-							<Label htmlFor="brand" className="text-right">
+							<Label htmlFor="edit_brand" className="text-right">
 								Brand*
 							</Label>
 							<Input
-								id="brand"
+								id="edit_brand"
 								name="brand"
 								value={formData.brand}
 								onChange={handleInputChange}
 								className="col-span-3"
 								required
-							/>
-						</div>
-						<div className="grid grid-cols-4 items-center gap-4">
-							<Label htmlFor="hsn_code" className="text-right">
-								HSN Code
-							</Label>
-							<Input
-								id="hsn_code"
-								name="hsn_code"
-								value={formData.hsn_code}
-								onChange={handleInputChange}
-								className="col-span-3"
-							/>
-						</div>
-						<div className="grid grid-cols-4 items-center gap-4">
-							<Label htmlFor="gst_rate" className="text-right">
-								GST Rate (%)
-							</Label>
-							<Input
-								id="gst_rate"
-								name="gst_rate"
-								type="number"
-								step="0.01"
-								value={formData.gst_rate || ""}
-								onChange={handleInputChange}
-								className="col-span-3"
+								disabled={isLoading}
 							/>
 						</div>
 						<div className="grid grid-cols-4 items-center gap-4">
 							<Label
-								htmlFor="therapeutic_category"
+								htmlFor="edit_hsn_code"
+								className="text-right"
+							>
+								HSN Code
+							</Label>
+							<Input
+								id="edit_hsn_code"
+								name="hsn_code"
+								value={formData.hsn_code}
+								onChange={handleInputChange}
+								className="col-span-3"
+								disabled={isLoading}
+							/>
+						</div>
+						<div className="grid grid-cols-4 items-center gap-4">
+							<Label
+								htmlFor="edit_gst_rate"
+								className="text-right"
+							>
+								GST Rate (%)
+							</Label>
+							<Input
+								id="edit_gst_rate"
+								name="gst_rate"
+								type="number"
+								step="0.01"
+								min="0"
+								max="100"
+								value={formData.gst_rate || ""}
+								onChange={handleInputChange}
+								className="col-span-3"
+								disabled={isLoading}
+							/>
+						</div>
+						<div className="grid grid-cols-4 items-center gap-4">
+							<Label
+								htmlFor="edit_therapeutic_category"
 								className="text-right"
 							>
 								Category
@@ -224,6 +294,7 @@ export function EditMedicineDialog({
 									)
 								}
 								value={formData.therapeutic_category}
+								disabled={isLoading}
 							>
 								<SelectTrigger className="col-span-3">
 									<SelectValue placeholder="Select category" />
@@ -242,16 +313,17 @@ export function EditMedicineDialog({
 						</div>
 						<div className="grid grid-cols-4 items-center gap-4">
 							<Label
-								htmlFor="requires_prescription"
+								htmlFor="edit_requires_prescription"
 								className="text-right"
 							>
 								Requires Prescription
 							</Label>
 							<div className="flex items-center space-x-2 col-span-3">
 								<Switch
-									id="requires_prescription"
+									id="edit_requires_prescription"
 									checked={formData.requires_prescription}
 									onCheckedChange={handleSwitchChange}
+									disabled={isLoading}
 								/>
 								<span>
 									{formData.requires_prescription
@@ -265,11 +337,14 @@ export function EditMedicineDialog({
 						<Button
 							type="button"
 							variant="outline"
-							onClick={onClose}
+							onClick={handleClose}
+							disabled={isLoading}
 						>
 							Cancel
 						</Button>
-						<Button type="submit">Save Changes</Button>
+						<Button type="submit" disabled={isLoading}>
+							{isLoading ? "Saving..." : "Save Changes"}
+						</Button>
 					</DialogFooter>
 				</form>
 			</DialogContent>

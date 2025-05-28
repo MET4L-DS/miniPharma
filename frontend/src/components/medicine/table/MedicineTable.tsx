@@ -9,7 +9,7 @@ import {
 	TableCell,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
 	Select,
 	SelectTrigger,
@@ -17,10 +17,13 @@ import {
 	SelectContent,
 	SelectItem,
 } from "@/components/ui/select";
-import { Medicine, MedicineTableProps } from "@/types/medicine";
+import { Medicine, MedicineTableProps, SearchResult } from "@/types/medicine";
 import { MedicineActions } from "./MedicineActions";
 import { EditMedicineDialog } from "../dialogs/EditMedicineDialog";
 import { DeleteConfirmationDialog } from "../dialogs/DeleteConfirmationDialog";
+import { apiService } from "@/services/api";
+import { debounce } from "@/utils/medicine";
+import { toast } from "sonner";
 
 export function MedicineTable({
 	medicines,
@@ -30,6 +33,9 @@ export function MedicineTable({
 	const [searchTerm, setSearchTerm] = useState("");
 	const [selectedCategory, setSelectedCategory] = useState("All");
 	const [requiresPrescription, setRequiresPrescription] = useState("All");
+	const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+	const [isSearching, setIsSearching] = useState(false);
+	const [showSearchResults, setShowSearchResults] = useState(false);
 
 	// Edit state
 	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -41,10 +47,59 @@ export function MedicineTable({
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 	const [medicineToDelete, setMedicineToDelete] = useState<string>("");
 
+	// Debounced search function
+	const debouncedSearch = useCallback(
+		debounce(async (query: string) => {
+			if (query.trim().length < 2) {
+				setSearchResults([]);
+				setShowSearchResults(false);
+				setIsSearching(false);
+				return;
+			}
+
+			try {
+				setIsSearching(true);
+				const results = await apiService.searchMedicines(query);
+				setSearchResults(results);
+				setShowSearchResults(true);
+			} catch (error) {
+				console.error("Search error:", error);
+				toast.error("Search failed. Please try again.");
+				setSearchResults([]);
+				setShowSearchResults(false);
+			} finally {
+				setIsSearching(false);
+			}
+		}, 300),
+		[]
+	);
+
+	// Handle search input change
+	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const value = e.target.value;
+		setSearchTerm(value);
+
+		if (value.trim().length === 0) {
+			setSearchResults([]);
+			setShowSearchResults(false);
+			setIsSearching(false);
+		} else {
+			setIsSearching(true);
+			debouncedSearch(value);
+		}
+	};
+
+	// Filter medicines based on local filters
 	const filteredMedicines = medicines.filter((medicine) => {
-		const matchesSearch = Object.values(medicine).some((value) =>
-			value.toString().toLowerCase().includes(searchTerm.toLowerCase())
-		);
+		const matchesSearch = showSearchResults
+			? false
+			: searchTerm.length < 2 ||
+			  Object.values(medicine).some((value) =>
+					value
+						.toString()
+						.toLowerCase()
+						.includes(searchTerm.toLowerCase())
+			  );
 		const matchesCategory =
 			selectedCategory !== "All"
 				? medicine.therapeutic_category === selectedCategory
@@ -78,20 +133,40 @@ export function MedicineTable({
 		setIsDeleteDialogOpen(true);
 	};
 
-	const confirmDelete = () => {
-		onDelete(medicineToDelete);
-		setIsDeleteDialogOpen(false);
+	const confirmDelete = async () => {
+		try {
+			await onDelete(medicineToDelete);
+			setIsDeleteDialogOpen(false);
+		} catch (error) {
+			// Error handling is done in parent component
+		}
+	};
+
+	const handleUpdateMedicine = async (updatedMedicine: Medicine) => {
+		try {
+			await onUpdate(updatedMedicine);
+		} catch (error) {
+			// Error handling is done in parent component
+			throw error;
+		}
 	};
 
 	return (
 		<div>
 			<div className="flex gap-4 mb-4">
-				<Input
-					type="text"
-					placeholder="Search medicines..."
-					value={searchTerm}
-					onChange={(e) => setSearchTerm(e.target.value)}
-				/>
+				<div className="relative flex-1">
+					<Input
+						type="text"
+						placeholder="Search medicines (min 2 characters for API search)..."
+						value={searchTerm}
+						onChange={handleSearchChange}
+					/>
+					{isSearching && (
+						<div className="absolute right-3 top-3">
+							<div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+						</div>
+					)}
+				</div>
 				<Select
 					onValueChange={setSelectedCategory}
 					value={selectedCategory}
@@ -121,22 +196,84 @@ export function MedicineTable({
 					</SelectContent>
 				</Select>
 			</div>
+
+			{/* Show search results or regular medicine table */}
 			<Table>
 				<TableHeader>
 					<TableRow>
-						<TableHead>Medicine ID</TableHead>
-						<TableHead>Composition ID</TableHead>
-						<TableHead>Name</TableHead>
-						<TableHead>Brand</TableHead>
-						<TableHead>HSN Code</TableHead>
-						<TableHead>GST Rate (%)</TableHead>
-						<TableHead>Requires Prescription</TableHead>
-						<TableHead>Therapeutic Category</TableHead>
-						<TableHead className="text-right">Actions</TableHead>
+						{showSearchResults ? (
+							<>
+								<TableHead>Product ID</TableHead>
+								<TableHead>Generic Name</TableHead>
+								<TableHead>Brand Name</TableHead>
+								<TableHead>Batch Number</TableHead>
+								<TableHead>Expiry Date</TableHead>
+								<TableHead>Purchase Price</TableHead>
+								<TableHead>Selling Price</TableHead>
+								<TableHead>Stock Quantity</TableHead>
+							</>
+						) : (
+							<>
+								<TableHead>Medicine ID</TableHead>
+								<TableHead>Composition ID</TableHead>
+								<TableHead>Name</TableHead>
+								<TableHead>Brand</TableHead>
+								<TableHead>HSN Code</TableHead>
+								<TableHead>GST Rate (%)</TableHead>
+								<TableHead>Requires Prescription</TableHead>
+								<TableHead>Therapeutic Category</TableHead>
+								<TableHead className="text-right">
+									Actions
+								</TableHead>
+							</>
+						)}
 					</TableRow>
 				</TableHeader>
 				<TableBody>
-					{filteredMedicines.length > 0 ? (
+					{showSearchResults ? (
+						searchResults.length > 0 ? (
+							searchResults.map((result, index) => (
+								<TableRow
+									key={`${result.product_id}-${result.batch_number}-${index}`}
+								>
+									<TableCell>{result.product_id}</TableCell>
+									<TableCell>{result.generic_name}</TableCell>
+									<TableCell>{result.brand_name}</TableCell>
+									<TableCell>{result.batch_number}</TableCell>
+									<TableCell>
+										{new Date(
+											result.expiry_date
+										).toLocaleDateString()}
+									</TableCell>
+									<TableCell>
+										₹
+										{result.average_purchase_price?.toFixed(
+											2
+										) || "N/A"}
+									</TableCell>
+									<TableCell>
+										₹
+										{result.selling_price?.toFixed(2) ||
+											"N/A"}
+									</TableCell>
+									<TableCell>
+										{result.quantity_in_stock || 0}
+									</TableCell>
+								</TableRow>
+							))
+						) : (
+							<TableRow>
+								<TableCell
+									colSpan={8}
+									className="text-center py-4"
+								>
+									{isSearching
+										? "Searching..."
+										: "No search results found"}
+								</TableCell>
+							</TableRow>
+						)
+					) : filteredMedicines.length > 0 ? (
 						filteredMedicines.map((medicine) => (
 							<TableRow key={medicine.medicine_id}>
 								<TableCell>{medicine.medicine_id}</TableCell>
@@ -177,7 +314,7 @@ export function MedicineTable({
 				isOpen={isEditDialogOpen}
 				onClose={() => setIsEditDialogOpen(false)}
 				medicine={currentMedicine}
-				onSave={onUpdate}
+				onSave={handleUpdateMedicine}
 			/>
 
 			{/* Delete Confirmation Dialog */}

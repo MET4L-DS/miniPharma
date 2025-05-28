@@ -10,12 +10,11 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
 
 interface DeleteConfirmationDialogProps {
 	isOpen: boolean;
 	onClose: () => void;
-	onConfirm: () => void;
+	onConfirm: () => Promise<void>;
 	medicineId: string;
 }
 
@@ -25,6 +24,15 @@ export function DeleteConfirmationDialog({
 	onConfirm,
 	medicineId,
 }: DeleteConfirmationDialogProps) {
+	const handleConfirm = async () => {
+		try {
+			await onConfirm();
+		} catch (error) {
+			// Error handling is done in parent component
+			console.error("Failed to delete medicine:", error);
+		}
+	};
+
 	return (
 		<AlertDialog open={isOpen} onOpenChange={onClose}>
 			<AlertDialogContent>
@@ -34,18 +42,15 @@ export function DeleteConfirmationDialog({
 					</AlertDialogTitle>
 					<AlertDialogDescription>
 						This will permanently remove the medicine with ID:{" "}
-						{medicineId} from the system. This action cannot be
-						undone.
+						<strong>{medicineId}</strong> from the system. This
+						action cannot be undone.
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 				<AlertDialogFooter>
 					<AlertDialogCancel>Cancel</AlertDialogCancel>
 					<AlertDialogAction
-						onClick={() => {
-							onConfirm();
-							toast.success("Medicine deleted successfully");
-						}}
-						className="bg-red-600 hover:bg-red-700"
+						onClick={handleConfirm}
+						className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
 					>
 						Delete
 					</AlertDialogAction>

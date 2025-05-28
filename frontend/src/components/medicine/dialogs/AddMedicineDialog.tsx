@@ -21,21 +21,11 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Medicine } from "@/types/medicine";
 import { toast } from "sonner";
 
-interface Medicine {
-	medicine_id: string;
-	composition_id: number;
-	name: string;
-	brand: string;
-	hsn_code: string;
-	gst_rate: number;
-	requires_prescription: boolean;
-	therapeutic_category: string;
-}
-
 interface AddMedicineDialogProps {
-	onAddMedicine: (medicine: Medicine) => void;
+	onAddMedicine: (medicine: Medicine) => Promise<void>;
 }
 
 const categories = [
@@ -52,6 +42,7 @@ const categories = [
 
 export function AddMedicineDialog({ onAddMedicine }: AddMedicineDialogProps) {
 	const [open, setOpen] = useState(false);
+	const [isLoading, setIsLoading] = useState(false);
 	const [formData, setFormData] = useState<Medicine>({
 		medicine_id: "",
 		composition_id: 0,
@@ -69,7 +60,7 @@ export function AddMedicineDialog({ onAddMedicine }: AddMedicineDialogProps) {
 			...prev,
 			[name]:
 				name === "composition_id" || name === "gst_rate"
-					? parseFloat(value)
+					? parseFloat(value) || 0
 					: value,
 		}));
 	};
@@ -88,19 +79,7 @@ export function AddMedicineDialog({ onAddMedicine }: AddMedicineDialogProps) {
 		}));
 	};
 
-	const handleSubmit = (e: React.FormEvent) => {
-		e.preventDefault();
-
-		// Basic validation
-		if (!formData.medicine_id || !formData.name || !formData.brand) {
-			toast.error("Please fill in all required fields.");
-			return;
-		}
-
-		onAddMedicine(formData);
-		toast.success("Medicine added successfully!");
-
-		// Reset form and close dialog
+	const resetForm = () => {
 		setFormData({
 			medicine_id: "",
 			composition_id: 0,
@@ -111,11 +90,48 @@ export function AddMedicineDialog({ onAddMedicine }: AddMedicineDialogProps) {
 			requires_prescription: false,
 			therapeutic_category: "",
 		});
-		setOpen(false);
+	};
+
+	const handleSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+
+		// Basic validation
+		if (!formData.medicine_id || !formData.name || !formData.brand) {
+			toast.error("Please fill in all required fields.");
+			return;
+		}
+
+		if (formData.composition_id <= 0) {
+			toast.error("Composition ID must be a positive number.");
+			return;
+		}
+
+		try {
+			setIsLoading(true);
+			await onAddMedicine(formData);
+
+			// Reset form and close dialog on success
+			resetForm();
+			setOpen(false);
+		} catch (error) {
+			// Error handling is done in parent component
+			console.error("Failed to add medicine:", error);
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	const handleOpenChange = (newOpen: boolean) => {
+		if (!isLoading) {
+			setOpen(newOpen);
+			if (!newOpen) {
+				resetForm();
+			}
+		}
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={setOpen}>
+		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogTrigger asChild>
 				<Button variant="default">Add New Medicine</Button>
 			</DialogTrigger>
@@ -139,7 +155,9 @@ export function AddMedicineDialog({ onAddMedicine }: AddMedicineDialogProps) {
 								value={formData.medicine_id}
 								onChange={handleInputChange}
 								className="col-span-3"
+								placeholder="e.g., MED001"
 								required
+								disabled={isLoading}
 							/>
 						</div>
 						<div className="grid grid-cols-4 items-center gap-4">
@@ -153,10 +171,13 @@ export function AddMedicineDialog({ onAddMedicine }: AddMedicineDialogProps) {
 								id="composition_id"
 								name="composition_id"
 								type="number"
+								min="1"
 								value={formData.composition_id || ""}
 								onChange={handleInputChange}
 								className="col-span-3"
+								placeholder="e.g., 101"
 								required
+								disabled={isLoading}
 							/>
 						</div>
 						<div className="grid grid-cols-4 items-center gap-4">
@@ -169,7 +190,9 @@ export function AddMedicineDialog({ onAddMedicine }: AddMedicineDialogProps) {
 								value={formData.name}
 								onChange={handleInputChange}
 								className="col-span-3"
+								placeholder="e.g., Paracetamol"
 								required
+								disabled={isLoading}
 							/>
 						</div>
 						<div className="grid grid-cols-4 items-center gap-4">
@@ -182,7 +205,9 @@ export function AddMedicineDialog({ onAddMedicine }: AddMedicineDialogProps) {
 								value={formData.brand}
 								onChange={handleInputChange}
 								className="col-span-3"
+								placeholder="e.g., Crocin"
 								required
+								disabled={isLoading}
 							/>
 						</div>
 						<div className="grid grid-cols-4 items-center gap-4">
@@ -195,6 +220,8 @@ export function AddMedicineDialog({ onAddMedicine }: AddMedicineDialogProps) {
 								value={formData.hsn_code}
 								onChange={handleInputChange}
 								className="col-span-3"
+								placeholder="e.g., 30049099"
+								disabled={isLoading}
 							/>
 						</div>
 						<div className="grid grid-cols-4 items-center gap-4">
@@ -206,9 +233,13 @@ export function AddMedicineDialog({ onAddMedicine }: AddMedicineDialogProps) {
 								name="gst_rate"
 								type="number"
 								step="0.01"
+								min="0"
+								max="100"
 								value={formData.gst_rate || ""}
 								onChange={handleInputChange}
 								className="col-span-3"
+								placeholder="e.g., 12.00"
+								disabled={isLoading}
 							/>
 						</div>
 						<div className="grid grid-cols-4 items-center gap-4">
@@ -226,6 +257,7 @@ export function AddMedicineDialog({ onAddMedicine }: AddMedicineDialogProps) {
 									)
 								}
 								value={formData.therapeutic_category}
+								disabled={isLoading}
 							>
 								<SelectTrigger className="col-span-3">
 									<SelectValue placeholder="Select category" />
@@ -254,6 +286,7 @@ export function AddMedicineDialog({ onAddMedicine }: AddMedicineDialogProps) {
 									id="requires_prescription"
 									checked={formData.requires_prescription}
 									onCheckedChange={handleSwitchChange}
+									disabled={isLoading}
 								/>
 								<span>
 									{formData.requires_prescription
@@ -267,11 +300,14 @@ export function AddMedicineDialog({ onAddMedicine }: AddMedicineDialogProps) {
 						<Button
 							type="button"
 							variant="outline"
-							onClick={() => setOpen(false)}
+							onClick={() => handleOpenChange(false)}
+							disabled={isLoading}
 						>
 							Cancel
 						</Button>
-						<Button type="submit">Add Medicine</Button>
+						<Button type="submit" disabled={isLoading}>
+							{isLoading ? "Adding..." : "Add Medicine"}
+						</Button>
 					</DialogFooter>
 				</form>
 			</DialogContent>
