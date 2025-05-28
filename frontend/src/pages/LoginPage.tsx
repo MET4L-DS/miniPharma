@@ -56,7 +56,7 @@ const LoginPage = () => {
 				toast.success("Login successful!");
 				// Store user info if needed
 				localStorage.setItem("userPhone", phoneNumber);
-				navigate("/medicines");
+				navigate("/dashboard");
 			} else {
 				toast.error(data.error || "Login failed");
 			}

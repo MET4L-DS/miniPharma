@@ -27,6 +27,7 @@ import {
 	User2,
 	LogOut,
 	Settings,
+	Package,
 } from "lucide-react";
 
 const navigationItems = [
@@ -39,6 +40,11 @@ const navigationItems = [
 		title: "Medicine Management",
 		url: "/medicines",
 		icon: Pill,
+	},
+	{
+		title: "Stock Management",
+		url: "/stock",
+		icon: Package, // Add this import: import { Package } from "lucide-react";
 	},
 	{
 		title: "Billing",

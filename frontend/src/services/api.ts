@@ -24,6 +24,18 @@ export interface SearchResult {
 	quantity_in_stock: number;
 }
 
+export interface ApiBatch {
+	id: number;
+	batch_number: string;
+	product_id: string;
+	expiry_date: string;
+	average_purchase_price: number;
+	selling_price: number;
+	quantity_in_stock: number;
+	generic_name?: string;
+	brand_name?: string;
+}
+
 class ApiService {
 	private async makeRequest(endpoint: string, options: RequestInit = {}) {
 		const url = `${API_BASE_URL}${endpoint}`;
@@ -104,6 +116,39 @@ class ApiService {
 	async searchMedicines(query: string): Promise<SearchResult[]> {
 		if (!query.trim()) return [];
 		return this.makeRequest(`/search/?search=${encodeURIComponent(query)}`);
+	}
+
+	async getBatches(): Promise<ApiBatch[]> {
+		return this.makeRequest("/batches/");
+	}
+
+	async getBatch(batchId: number): Promise<ApiBatch> {
+		return this.makeRequest(`/batches/${batchId}/`);
+	}
+
+	async createBatch(
+		batch: Omit<ApiBatch, "id" | "generic_name" | "brand_name">
+	): Promise<{ message: string }> {
+		return this.makeRequest("/batches/", {
+			method: "POST",
+			body: JSON.stringify(batch),
+		});
+	}
+
+	async updateBatch(
+		batchId: number,
+		batch: Partial<Omit<ApiBatch, "id" | "generic_name" | "brand_name">>
+	): Promise<{ message: string }> {
+		return this.makeRequest(`/batches/${batchId}/`, {
+			method: "PUT",
+			body: JSON.stringify(batch),
+		});
+	}
+
+	async deleteBatch(batchId: number): Promise<{ message: string }> {
+		return this.makeRequest(`/batches/${batchId}/`, {
+			method: "DELETE",
+		});
 	}
 }
 

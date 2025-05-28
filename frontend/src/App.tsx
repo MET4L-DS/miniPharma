@@ -10,6 +10,8 @@ import LoginPage from "@/pages/LoginPage";
 import RegistrationPage from "@/pages/RegistrationPage";
 import BillingPage from "@/pages/BillingPage";
 import DashboardPage from "@/pages/DashboardPage";
+import StockPage from "@/pages/StockPage";
+
 import { Toaster } from "sonner";
 
 function App() {
@@ -24,6 +26,7 @@ function App() {
 				<Route path="/register" element={<RegistrationPage />} />
 				<Route path="/dashboard" element={<DashboardPage />} />
 				<Route path="/medicines" element={<MedicinePage />} />
+				<Route path="/stock" element={<StockPage />} />
 				<Route path="/billing" element={<BillingPage />} />
 			</Routes>
 			<Toaster />
