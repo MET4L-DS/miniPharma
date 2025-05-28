@@ -1,11 +1,11 @@
 // file: ./src/pages/MedicinePage.tsx
-
 import { useState, useEffect } from "react";
 import { MedicineTable, AddMedicineDialog } from "@/components/medicine";
 import { Medicine } from "@/types/medicine";
 import { apiService } from "@/services/api";
 import { transformApiMedicineToMedicine } from "@/utils/medicine";
 import { toast } from "sonner";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 
 export default function MedicinePage() {
 	const [medicines, setMedicines] = useState<Medicine[]>([]);
@@ -113,43 +113,62 @@ export default function MedicinePage() {
 
 	if (loading) {
 		return (
-			<div className="px-16 py-8">
-				<div className="flex justify-center items-center h-64">
-					<div className="text-lg">Loading medicines...</div>
+			<DashboardLayout
+				title="Medicine Management"
+				breadcrumbs={[{ label: "Medicine Management" }]}
+			>
+				<div className="flex items-center justify-center h-64">
+					<p className="text-muted-foreground">
+						Loading medicines...
+					</p>
 				</div>
-			</div>
+			</DashboardLayout>
 		);
 	}
 
 	if (error) {
 		return (
-			<div className="px-16 py-8">
-				<div className="flex flex-col justify-center items-center h-64">
-					<div className="text-lg text-red-600 mb-4">
-						Error: {error}
-					</div>
+			<DashboardLayout
+				title="Medicine Management"
+				breadcrumbs={[{ label: "Medicine Management" }]}
+			>
+				<div className="flex flex-col items-center justify-center h-64 space-y-4">
+					<p className="text-destructive">Error: {error}</p>
 					<button
 						onClick={fetchMedicines}
-						className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+						className="px-4 py-2 bg-primary text-primary-foreground rounded-md"
 					>
 						Retry
 					</button>
 				</div>
-			</div>
+			</DashboardLayout>
 		);
 	}
 
 	return (
-		<div className="px-16 py-8">
-			<div className="flex justify-between items-center mb-4">
-				<h1 className="text-2xl font-bold">Medicine List</h1>
-				<AddMedicineDialog onAddMedicine={handleAddMedicine} />
+		<DashboardLayout
+			title="Medicine Management"
+			breadcrumbs={[{ label: "Medicine Management" }]}
+		>
+			<div className="space-y-6">
+				<div className="flex justify-between items-center">
+					<div>
+						<h1 className="text-3xl font-bold tracking-tight">
+							Medicine List
+						</h1>
+						<p className="text-muted-foreground">
+							Manage your pharmacy inventory
+						</p>
+					</div>
+					<AddMedicineDialog onAddMedicine={handleAddMedicine} />
+				</div>
+
+				<MedicineTable
+					medicines={medicines}
+					onUpdate={handleUpdateMedicine}
+					onDelete={handleDeleteMedicine}
+				/>
 			</div>
-			<MedicineTable
-				medicines={medicines}
-				onUpdate={handleUpdateMedicine}
-				onDelete={handleDeleteMedicine}
-			/>
-		</div>
+		</DashboardLayout>
 	);
 }

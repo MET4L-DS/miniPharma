@@ -2,11 +2,11 @@
 
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
-
 import { AddItemCard } from "@/components/billing/AddItemCard";
 import { BillSummaryCard } from "@/components/billing/BillSummaryCard";
 import { BillItemsTable } from "@/components/billing/BillItemsTable";
 import { PaymentModal } from "@/components/billing/PaymentModal";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 
 // Define the BillItem interface
 interface BillItem {
@@ -135,44 +135,57 @@ export default function BillingPage() {
 	};
 
 	return (
-		<div className="px-4 md:px-16 py-8">
-			<h1 className="text-2xl font-bold mb-6">Billing</h1>
+		<DashboardLayout title="Billing" breadcrumbs={[{ label: "Billing" }]}>
+			<div className="space-y-6">
+				<div>
+					<h1 className="text-3xl font-bold tracking-tight">
+						Billing
+					</h1>
+					<p className="text-muted-foreground">
+						Create and manage customer bills
+					</p>
+				</div>
 
-			<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-				<AddItemCard
-					newItem={newItem}
-					setNewItem={setNewItem}
-					handleAddItem={handleAddItem}
-					sampleMedicines={sampleMedicines}
-				/>
+				<div className="grid gap-6 lg:grid-cols-3">
+					<div className="lg:col-span-2 space-y-6">
+						<AddItemCard
+							newItem={newItem}
+							setNewItem={setNewItem}
+							handleAddItem={handleAddItem}
+							sampleMedicines={sampleMedicines}
+						/>
 
-				<BillSummaryCard
-					discountPercentage={discountPercentage}
-					setDiscountPercentage={setDiscountPercentage}
-					totalAmount={totalAmount}
-					discountAmount={discountAmount}
+						<BillItemsTable
+							billItems={billItems}
+							handleRemoveItem={handleRemoveItem}
+							totalAmount={totalAmount}
+							discountPercentage={discountPercentage}
+							discountAmount={discountAmount}
+							finalAmount={finalAmount}
+						/>
+					</div>
+
+					<div>
+						<BillSummaryCard
+							discountPercentage={discountPercentage}
+							setDiscountPercentage={setDiscountPercentage}
+							totalAmount={totalAmount}
+							discountAmount={discountAmount}
+							finalAmount={finalAmount}
+							phoneNumber={phoneNumber}
+							setPhoneNumber={setPhoneNumber}
+							handleGenerateBill={handleGenerateBill}
+						/>
+					</div>
+				</div>
+
+				<PaymentModal
+					open={paymentModalOpen}
+					onOpenChange={() => setPaymentModalOpen(false)}
 					finalAmount={finalAmount}
-					phoneNumber={phoneNumber}
-					setPhoneNumber={setPhoneNumber}
-					handleGenerateBill={handleGenerateBill}
+					onPaymentComplete={handlePaymentComplete}
 				/>
 			</div>
-
-			<BillItemsTable
-				billItems={billItems}
-				handleRemoveItem={handleRemoveItem}
-				totalAmount={totalAmount}
-				discountPercentage={discountPercentage}
-				discountAmount={discountAmount}
-				finalAmount={finalAmount}
-			/>
-
-			<PaymentModal
-				open={paymentModalOpen}
-				onOpenChange={setPaymentModalOpen}
-				finalAmount={finalAmount}
-				onPaymentComplete={handlePaymentComplete}
-			/>
-		</div>
+		</DashboardLayout>
 	);
 }
