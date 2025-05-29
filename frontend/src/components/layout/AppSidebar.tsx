@@ -28,6 +28,7 @@ import {
 	LogOut,
 	Settings,
 	Package,
+	CreditCard, // Add this import
 } from "lucide-react";
 
 const navigationItems = [
@@ -44,12 +45,17 @@ const navigationItems = [
 	{
 		title: "Stock Management",
 		url: "/stock",
-		icon: Package, // Add this import: import { Package } from "lucide-react";
+		icon: Package,
 	},
 	{
 		title: "Billing",
 		url: "/billing",
 		icon: Receipt,
+	},
+	{
+		title: "Payments", // Add this new navigation item
+		url: "/payments",
+		icon: CreditCard,
 	},
 ];
 
@@ -59,19 +65,10 @@ export function AppSidebar() {
 	return (
 		<Sidebar>
 			<SidebarHeader>
-				<div className="flex items-center gap-2 px-4 py-2">
-					<div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-						<Pill className="size-4" />
-					</div>
-					<div className="grid flex-1 text-left text-sm leading-tight">
-						<span className="truncate font-semibold">
-							Pharmacy System
-						</span>
-						<span className="truncate text-xs text-muted-foreground">
-							Management Portal
-						</span>
-					</div>
-				</div>
+				<h2 className="text-lg font-semibold">Pharmacy System</h2>
+				<p className="text-sm text-muted-foreground">
+					Management Portal
+				</p>
 			</SidebarHeader>
 
 			<SidebarContent>
@@ -88,7 +85,7 @@ export function AppSidebar() {
 										}
 									>
 										<a href={item.url}>
-											<item.icon className="size-4" />
+											<item.icon />
 											<span>{item.title}</span>
 										</a>
 									</SidebarMenuButton>
@@ -104,39 +101,32 @@ export function AppSidebar() {
 					<SidebarMenuItem>
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
-								<SidebarMenuButton
-									size="lg"
-									className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-								>
-									<Avatar className="h-8 w-8 rounded-lg">
-										<AvatarFallback className="rounded-lg">
-											<User2 className="size-4" />
-										</AvatarFallback>
+								<SidebarMenuButton>
+									<Avatar className="h-8 w-8">
+										<AvatarFallback>AU</AvatarFallback>
 									</Avatar>
-									<div className="grid flex-1 text-left text-sm leading-tight">
-										<span className="truncate font-semibold">
+									<div className="flex flex-col text-left">
+										<span className="text-sm font-medium">
 											Admin User
 										</span>
-										<span className="truncate text-xs">
+										<span className="text-xs text-muted-foreground">
 											admin@pharmacy.com
 										</span>
 									</div>
-									<ChevronUp className="ml-auto size-4" />
+									<ChevronUp className="ml-auto" />
 								</SidebarMenuButton>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent
-								className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-								side="bottom"
-								align="end"
-								sideOffset={4}
+								side="top"
+								className="w-[--radix-popper-anchor-width]"
 							>
 								<DropdownMenuItem>
-									<Settings className="mr-2 size-4" />
-									Settings
+									<Settings />
+									<span>Settings</span>
 								</DropdownMenuItem>
 								<DropdownMenuItem>
-									<LogOut className="mr-2 size-4" />
-									Log out
+									<LogOut />
+									<span>Log out</span>
 								</DropdownMenuItem>
 							</DropdownMenuContent>
 						</DropdownMenu>

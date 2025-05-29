@@ -11,6 +11,7 @@ import RegistrationPage from "@/pages/RegistrationPage";
 import BillingPage from "@/pages/BillingPage";
 import DashboardPage from "@/pages/DashboardPage";
 import StockPage from "@/pages/StockPage";
+import PaymentPage from "@/pages/PaymentPage";
 
 import { Toaster } from "sonner";
 
@@ -28,6 +29,7 @@ function App() {
 				<Route path="/medicines" element={<MedicinePage />} />
 				<Route path="/stock" element={<StockPage />} />
 				<Route path="/billing" element={<BillingPage />} />
+				<Route path="/payments" element={<PaymentPage />} />
 			</Routes>
 			<Toaster />
 		</Router>

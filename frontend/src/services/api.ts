@@ -78,9 +78,8 @@ export interface PaymentData {
 }
 
 class ApiService {
-	private async makeRequest(endpoint: string, options: RequestInit = {}) {
+	async makeRequest(endpoint: string, options: RequestInit = {}) {
 		const url = `${API_BASE_URL}${endpoint}`;
-
 		const defaultOptions: RequestInit = {
 			headers: {
 				"Content-Type": "application/json",
