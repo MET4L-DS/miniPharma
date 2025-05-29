@@ -85,6 +85,17 @@ export interface PaymentResponse {
 	customer_name: string;
 	total_amount: number | null;
 	order_date: string;
+	items?: OrderItemDetails[];
+}
+
+export interface OrderItemDetails {
+	medicine_name: string;
+	brand_name: string;
+	quantity: number;
+	unit_price: number;
+	gst: number;
+	amount: number;
+	batch_number: string;
 }
 
 export interface PaymentSummary {

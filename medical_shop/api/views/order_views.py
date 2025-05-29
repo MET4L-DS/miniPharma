@@ -40,20 +40,64 @@ def create_order(request):
 
 @csrf_exempt
 def get_orders(request):
-    """Get all orders"""
+    """Get all orders with their items"""
     if request.method == 'GET':
         try:
             with connection.cursor() as cursor:
+                # Query to get orders with their items
                 cursor.execute("""
-                    SELECT order_id, customer_name, customer_number, doctor_name, 
-                           total_amount, discount_percentage, order_date
-                    FROM api_order
-                    ORDER BY order_date DESC
+                    SELECT 
+                        o.order_id,
+                        o.customer_name,
+                        o.customer_number,
+                        o.doctor_name,
+                        o.total_amount,
+                        o.discount_percentage,
+                        o.order_date,
+                        oi.quantity,
+                        oi.unit_price,
+                        p.generic_name,
+                        p.brand_name,
+                        p.gst,
+                        b.batch_number,
+                        (oi.quantity * oi.unit_price) as amount
+                    FROM api_order o
+                    LEFT JOIN api_orderitem oi ON o.order_id = oi.order_id
+                    LEFT JOIN api_product p ON oi.product_id = p.product_id
+                    LEFT JOIN api_batch b ON oi.batch_id = b.id
+                    ORDER BY o.order_date DESC
                 """)
-                columns = [col[0] for col in cursor.description]
-                results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+                rows = cursor.fetchall()
                 
-            return JsonResponse(results, safe=False, status=200)
+                # Group items by order
+                orders_dict = {}
+                for row in rows:
+                    order_id = row[0]
+                    if order_id not in orders_dict:
+                        orders_dict[order_id] = {
+                            'order_id': order_id,
+                            'customer_name': row[1],
+                            'customer_number': row[2],
+                            'doctor_name': row[3],
+                            'total_amount': float(row[4]) if row[4] else 0,
+                            'discount_percentage': float(row[5]) if row[5] else 0,
+                            'order_date': row[6].isoformat() if row[6] else None,
+                            'items': []
+                        }
+                    
+                    if row[7] is not None:  # If there are items
+                        orders_dict[order_id]['items'].append({
+                            'quantity': row[7],
+                            'unit_price': float(row[8]) if row[8] else 0,
+                            'medicine_name': row[9],
+                            'brand_name': row[10],
+                            'gst': float(row[11]) if row[11] else 0,
+                            'batch_number': row[12],
+                            'amount': float(row[13]) if row[13] else 0
+                        })
+                
+                results = list(orders_dict.values())
+                return JsonResponse(results, safe=False, status=200)
             
         except Exception as e:
             logger.error(f"Error fetching orders: {str(e)}")

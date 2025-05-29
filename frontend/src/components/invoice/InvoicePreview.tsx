@@ -3,6 +3,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
+interface OrderItem {
+	medicine_name: string;
+	brand_name: string;
+	quantity: number;
+	unit_price: number;
+	gst: number;
+	amount: number;
+}
+
 interface OrderData {
 	order_id: number;
 	customer_name: string;
@@ -11,6 +20,7 @@ interface OrderData {
 	payment_type: string;
 	cash_amount: number;
 	upi_amount: number;
+	items?: OrderItem[];
 }
 
 interface InvoicePreviewProps {
@@ -81,6 +91,73 @@ export function InvoicePreview({ orderData }: InvoicePreviewProps) {
 							CUST-{orderData.order_id}
 						</p>
 					</div>
+				</div>
+			</div>
+
+			<Separator className="my-6" />
+
+			{/* Medicine Items */}
+			<div className="mb-8">
+				<h3 className="text-lg font-semibold mb-4">Purchased Items</h3>
+				<div className="overflow-x-auto">
+					<table className="w-full text-sm">
+						<thead className="bg-gray-50">
+							<tr>
+								<th className="px-4 py-2 text-left font-medium text-gray-700">
+									Medicine Name
+								</th>
+								<th className="px-4 py-2 text-left font-medium text-gray-700">
+									Brand
+								</th>
+								<th className="px-4 py-2 text-right font-medium text-gray-700">
+									Qty
+								</th>
+								<th className="px-4 py-2 text-right font-medium text-gray-700">
+									Unit Price
+								</th>
+								<th className="px-4 py-2 text-right font-medium text-gray-700">
+									GST
+								</th>
+								<th className="px-4 py-2 text-right font-medium text-gray-700">
+									Amount
+								</th>
+							</tr>
+						</thead>
+						<tbody className="divide-y divide-gray-200">
+							{orderData.items?.map((item, index) => (
+								<tr key={index} className="text-gray-700">
+									<td className="px-4 py-2">
+										{item.medicine_name}
+									</td>
+									<td className="px-4 py-2">
+										{item.brand_name}
+									</td>
+									<td className="px-4 py-2 text-right">
+										{item.quantity}
+									</td>
+									<td className="px-4 py-2 text-right">
+										{formatCurrency(item.unit_price)}
+									</td>
+									<td className="px-4 py-2 text-right">
+										{item.gst}%
+									</td>
+									<td className="px-4 py-2 text-right">
+										{formatCurrency(item.amount)}
+									</td>
+								</tr>
+							))}
+							{!orderData.items?.length && (
+								<tr>
+									<td
+										colSpan={6}
+										className="px-4 py-2 text-center text-gray-500"
+									>
+										No items found
+									</td>
+								</tr>
+							)}
+						</tbody>
+					</table>
 				</div>
 			</div>
 
