@@ -106,6 +106,32 @@ export interface PaymentSummary {
 	total_payments: number;
 }
 
+export interface DashboardStats {
+	total_products: number;
+	total_batches: number;
+	total_orders: number;
+	low_stock_items: number;
+	expired_items: number;
+	todays_orders: number;
+	todays_revenue: number;
+}
+
+export interface ExpiringItem {
+	generic_name: string;
+	brand_name: string;
+	batch_number: string;
+	expiry_date: string;
+	quantity_in_stock: number;
+}
+
+export interface LowStockItem {
+	generic_name: string;
+	brand_name: string;
+	batch_number: string;
+	quantity_in_stock: number;
+	expiry_date: string;
+}
+
 class ApiService {
 	async makeRequest(endpoint: string, options: RequestInit = {}) {
 		const url = `${API_BASE_URL}${endpoint}`;
@@ -376,6 +402,50 @@ class ApiService {
 		const parsed =
 			typeof value === "string" ? parseInt(value, 10) : Number(value);
 		return isNaN(parsed) ? 0 : Math.floor(parsed);
+	}
+
+	async getDashboardStats(): Promise<DashboardStats> {
+		try {
+			const response = await this.makeRequest("/dashboard/stats/");
+			return {
+				total_products: this.safeParseInteger(response.total_products),
+				total_batches: this.safeParseInteger(response.total_batches),
+				total_orders: this.safeParseInteger(response.total_orders),
+				low_stock_items: this.safeParseInteger(
+					response.low_stock_items
+				),
+				expired_items: this.safeParseInteger(response.expired_items),
+				todays_orders: this.safeParseInteger(response.todays_orders),
+				todays_revenue: this.safeParseNumber(response.todays_revenue),
+			};
+		} catch (error) {
+			console.error("Error fetching dashboard stats:", error);
+			throw error;
+		}
+	}
+
+	async getExpiringSoon(): Promise<ExpiringItem[]> {
+		try {
+			const response = await this.makeRequest(
+				"/dashboard/expiring-soon/"
+			);
+			return Array.isArray(response) ? response : [];
+		} catch (error) {
+			console.error("Error fetching expiring items:", error);
+			return [];
+		}
+	}
+
+	async getLowStockItems(threshold: number = 10): Promise<LowStockItem[]> {
+		try {
+			const response = await this.makeRequest(
+				`/dashboard/low-stock/?threshold=${threshold}`
+			);
+			return Array.isArray(response) ? response : [];
+		} catch (error) {
+			console.error("Error fetching low stock items:", error);
+			return [];
+		}
 	}
 }
 

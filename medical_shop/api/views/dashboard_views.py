@@ -20,7 +20,7 @@ def get_dashboard_stats(request):
                 total_batches = cursor.fetchone()[0]
                 
                 # Get total orders
-                cursor.execute("SELECT COUNT(*) FROM api_orders")
+                cursor.execute("SELECT COUNT(*) FROM api_order")
                 total_orders = cursor.fetchone()[0]
                 
                 # Get low stock items (quantity < 10)
@@ -37,13 +37,13 @@ def get_dashboard_stats(request):
                 
                 # Get today's orders
                 cursor.execute("""
-                    SELECT COUNT(*) FROM api_orders WHERE DATE(order_date) = CURRENT_DATE
+                    SELECT COUNT(*) FROM api_order WHERE DATE(order_date) = CURRENT_DATE
                 """)
                 todays_orders = cursor.fetchone()[0]
                 
                 # Get today's revenue
                 cursor.execute("""
-                    SELECT COALESCE(SUM(total_amount), 0) FROM api_orders 
+                    SELECT COALESCE(SUM(total_amount), 0) FROM api_order 
                     WHERE DATE(order_date) = CURRENT_DATE
                 """)
                 todays_revenue = cursor.fetchone()[0]
@@ -73,20 +73,19 @@ def get_expiring_soon(request):
         try:
             with connection.cursor() as cursor:
                 cursor.execute("""
-                    SELECT p.generic_name, p.brand_name, b.batch_number, 
-                           b.expiry_date, b.quantity_in_stock
-                    FROM api_product p
-                    INNER JOIN api_batch b ON p.product_id = b.product_id
-                    WHERE b.expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'
+                    SELECT p.generic_name, p.brand_name, b.batch_number,
+                    b.expiry_date, b.quantity_in_stock
+                    FROM api_product p INNER JOIN api_batch b 
+                    ON p.product_id = b.product_id
+                    WHERE b.expiry_date BETWEEN CURRENT_DATE AND DATE_ADD(CURRENT_DATE, INTERVAL 30 DAY)
                     AND b.quantity_in_stock > 0
-                    ORDER BY b.expiry_date ASC
+                    ORDER BY b.expiry_date ASC;
                 """)
                 
                 columns = [col[0] for col in cursor.description]
                 results = [dict(zip(columns, row)) for row in cursor.fetchall()]
                 
-            return JsonResponse(results, safe=False, status=200)
-            
+                return JsonResponse(results, safe=False, status=200)
         except Exception as e:
             logger.error(f"Error fetching expiring items: {str(e)}")
             return JsonResponse({'error': 'Failed to fetch expiring items'}, status=500)
