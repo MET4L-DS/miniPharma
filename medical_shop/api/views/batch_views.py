@@ -137,7 +137,7 @@ class BatchView(APIView):
                     return Response({'error': 'Batch not found'}, status=status.HTTP_404_NOT_FOUND)
                 
                 # Check if batch is used in any orders
-                cursor.execute("SELECT 1 FROM api_order_items WHERE batch_number = (SELECT batch_number FROM api_batch WHERE id = %s) AND product_id = (SELECT product_id FROM api_batch WHERE id = %s) LIMIT 1", [batch_id, batch_id])
+                cursor.execute("SELECT 1 FROM api_orderitem WHERE batch_id = (SELECT batch_number FROM api_batch WHERE id = %s) AND product_id = (SELECT product_id FROM api_batch WHERE id = %s) LIMIT 1", [batch_id, batch_id])
                 if cursor.fetchone():
                     return Response({'error': 'Cannot delete batch with existing orders'}, status=status.HTTP_400_BAD_REQUEST)
                 

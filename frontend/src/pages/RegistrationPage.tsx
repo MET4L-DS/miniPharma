@@ -64,14 +64,16 @@ const RegistrationPage = () => {
 					phone: phoneNumber,
 					password: password,
 					shopname: shopName,
-					manager: manager || null, // Send null if manager field is empty
+					manager: manager || null,
 				}),
 			});
 
 			const data = await response.json();
 
 			if (response.ok) {
-				toast.success("Registration successful!");
+				toast.success(
+					"Registration successful! Please login to continue."
+				);
 				navigate("/login");
 			} else {
 				toast.error(data.error || "Registration failed");
@@ -164,7 +166,7 @@ const RegistrationPage = () => {
 							/>
 						</div>
 					</CardContent>
-					<CardFooter className="flex flex-col space-y-4">
+					<CardFooter className="flex flex-col space-y-4 pt-4">
 						<Button
 							type="submit"
 							className="w-full"

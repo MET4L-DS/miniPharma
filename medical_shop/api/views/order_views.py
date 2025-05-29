@@ -106,6 +106,51 @@ def get_orders(request):
     return JsonResponse({'error': 'Method not allowed. Use GET.'}, status=405)
 
 @csrf_exempt
+def get_order_items(request, order_id):
+    """Get all items for a specific order"""
+    if request.method == 'GET':
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                SELECT
+                    oi.quantity,
+                    oi.unit_price,
+                    COALESCE(p.generic_name, 'Unknown Medicine') as medicine_name,
+                    COALESCE(p.brand_name, 'Unknown Brand') as brand_name,
+                    COALESCE(p.gst, 0) as gst,
+                    COALESCE(b.batch_number, 'Unknown') as batch_number,
+                    (oi.quantity * oi.unit_price) as amount
+                FROM api_orderitem oi
+                LEFT JOIN api_product p ON oi.product_id = p.product_id
+                LEFT JOIN api_batch b ON oi.batch_id = b.id
+                WHERE oi.order_id = %s
+                ORDER BY p.generic_name
+                """, [order_id])
+                
+                rows = cursor.fetchall()
+                
+                items = []
+                for row in rows:
+                    items.append({
+                        'quantity': int(row[0]) if row[0] else 0,
+                        'unit_price': float(row[1]) if row[1] else 0.0,
+                        'medicine_name': row[2],
+                        'brand_name': row[3],
+                        'gst': float(row[4]) if row[4] else 0.0,
+                        'batch_number': row[5],
+                        'amount': float(row[6]) if row[6] else 0.0
+                    })
+                
+                return JsonResponse(items, safe=False, status=200)
+                
+        except Exception as e:
+            logger.error(f"Error fetching order items for order {order_id}: {str(e)}")
+            return JsonResponse({'error': 'Failed to fetch order items'}, status=500)
+    
+    return JsonResponse({'error': 'Method not allowed. Use GET.'}, status=405)
+
+
+@csrf_exempt
 def update_order(request, order_id):
     """Update an existing order"""
     if request.method == 'PUT':

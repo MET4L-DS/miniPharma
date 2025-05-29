@@ -50,6 +50,15 @@ interface PaymentData {
 	order_date: string;
 }
 
+interface OrderItem {
+	medicine_name: string;
+	brand_name: string;
+	quantity: number;
+	unit_price: number;
+	gst: number;
+	amount: number;
+}
+
 interface MergedPaymentData {
 	order_id: number;
 	payment_type: string;
@@ -58,6 +67,7 @@ interface MergedPaymentData {
 	order_date: string;
 	cash_amount: number;
 	upi_amount: number;
+	items?: OrderItem[];
 }
 
 export default function PaymentPage() {
@@ -66,6 +76,7 @@ export default function PaymentPage() {
 	const [selectedOrder, setSelectedOrder] =
 		useState<MergedPaymentData | null>(null);
 	const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+	const [loadingOrderDetails, setLoadingOrderDetails] = useState(false);
 	const printRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
@@ -85,6 +96,35 @@ export default function PaymentPage() {
 			toast.error("Failed to fetch payments");
 		} finally {
 			setLoading(false);
+		}
+	};
+
+	const fetchOrderItems = async (orderId: number): Promise<OrderItem[]> => {
+		try {
+			// Fetch order items for the specific order
+			const orderItems = await apiService.makeRequest(
+				`/orders/${orderId}/items/`
+			);
+
+			// Transform the API response to match our OrderItem interface
+			return orderItems.map((item: any) => ({
+				medicine_name:
+					item.medicine_name ||
+					item.generic_name ||
+					"Unknown Medicine",
+				brand_name: item.brand_name || "Unknown Brand",
+				quantity: item.quantity || 0,
+				unit_price: item.unit_price || 0,
+				gst: item.gst || 0,
+				amount: (item.quantity || 0) * (item.unit_price || 0),
+			}));
+		} catch (error) {
+			console.error(
+				`Error fetching order items for order ${orderId}:`,
+				error
+			);
+			toast.error(`Failed to fetch order items for order #${orderId}`);
+			return [];
 		}
 	};
 
@@ -131,6 +171,7 @@ export default function PaymentPage() {
 						payment.payment_type.toLowerCase() === "upi"
 							? transactionAmount
 							: 0,
+					items: [], // Initialize empty, will be loaded when needed
 				};
 				orderMap.set(orderId, mergedPayment);
 			}
@@ -191,9 +232,23 @@ export default function PaymentPage() {
 		return <Badge variant={variant}>{type}</Badge>;
 	};
 
-	const handlePreviewOrder = (payment: MergedPaymentData) => {
-		setSelectedOrder(payment);
-		setIsPreviewOpen(true);
+	const handlePreviewOrder = async (payment: MergedPaymentData) => {
+		setLoadingOrderDetails(true);
+		try {
+			// Fetch order items if not already loaded
+			if (!payment.items || payment.items.length === 0) {
+				const orderItems = await fetchOrderItems(payment.order_id);
+				payment.items = orderItems;
+			}
+
+			setSelectedOrder(payment);
+			setIsPreviewOpen(true);
+		} catch (error) {
+			console.error("Error loading order details:", error);
+			toast.error("Failed to load order details");
+		} finally {
+			setLoadingOrderDetails(false);
+		}
 	};
 
 	// Calculate summary statistics
@@ -317,102 +372,131 @@ export default function PaymentPage() {
 							No payments found
 						</div>
 					) : (
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead>Order ID</TableHead>
-									<TableHead>Customer</TableHead>
-									<TableHead>Payment Type</TableHead>
-									<TableHead>Order Total</TableHead>
-									<TableHead>Cash Amount</TableHead>
-									<TableHead>UPI Amount</TableHead>
-									<TableHead>Date</TableHead>
-									<TableHead>Actions</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{payments.map((payment) => (
-									<TableRow key={payment.order_id}>
-										<TableCell className="font-medium">
-											#{payment.order_id}
-										</TableCell>
-										<TableCell>
-											{payment.customer_name ||
-												"Unknown Customer"}
-										</TableCell>
-										<TableCell>
-											{getPaymentTypeBadge(
-												payment.payment_type
-											)}
-										</TableCell>
-										<TableCell>
-											{formatCurrency(
-												payment.total_amount
-											)}
-										</TableCell>
-										<TableCell>
-											{payment.cash_amount > 0
-												? formatCurrency(
-														payment.cash_amount
-												  )
-												: "-"}
-										</TableCell>
-										<TableCell>
-											{payment.upi_amount > 0
-												? formatCurrency(
-														payment.upi_amount
-												  )
-												: "-"}
-										</TableCell>
-										<TableCell>
-											{formatDate(payment.order_date)}
-										</TableCell>
-										<TableCell>
-											<Button
-												variant="outline"
-												size="sm"
-												onClick={() =>
-													handlePreviewOrder(payment)
-												}
-												className="flex items-center gap-2"
-											>
-												<Eye className="h-4 w-4" />
-												Preview
-											</Button>
-										</TableCell>
+						<div className="overflow-x-auto">
+							<Table>
+								<TableHeader>
+									<TableRow>
+										<TableHead className="min-w-[100px]">
+											Order ID
+										</TableHead>
+										<TableHead className="min-w-[150px]">
+											Customer
+										</TableHead>
+										<TableHead className="min-w-[120px]">
+											Payment Type
+										</TableHead>
+										<TableHead className="min-w-[120px]">
+											Order Total
+										</TableHead>
+										<TableHead className="min-w-[120px]">
+											Cash Amount
+										</TableHead>
+										<TableHead className="min-w-[120px]">
+											UPI Amount
+										</TableHead>
+										<TableHead className="min-w-[150px]">
+											Date
+										</TableHead>
+										<TableHead className="min-w-[100px]">
+											Actions
+										</TableHead>
 									</TableRow>
-								))}
-							</TableBody>
-						</Table>
+								</TableHeader>
+								<TableBody>
+									{payments.map((payment) => (
+										<TableRow key={payment.order_id}>
+											<TableCell className="font-medium">
+												#{payment.order_id}
+											</TableCell>
+											<TableCell className="max-w-[200px] truncate">
+												{payment.customer_name ||
+													"Unknown Customer"}
+											</TableCell>
+											<TableCell>
+												{getPaymentTypeBadge(
+													payment.payment_type
+												)}
+											</TableCell>
+											<TableCell>
+												{formatCurrency(
+													payment.total_amount
+												)}
+											</TableCell>
+											<TableCell>
+												{payment.cash_amount > 0
+													? formatCurrency(
+															payment.cash_amount
+													  )
+													: "-"}
+											</TableCell>
+											<TableCell>
+												{payment.upi_amount > 0
+													? formatCurrency(
+															payment.upi_amount
+													  )
+													: "-"}
+											</TableCell>
+											<TableCell className="text-sm">
+												{formatDate(payment.order_date)}
+											</TableCell>
+											<TableCell>
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={() =>
+														handlePreviewOrder(
+															payment
+														)
+													}
+													disabled={
+														loadingOrderDetails
+													}
+													className="flex items-center gap-2 whitespace-nowrap"
+												>
+													<Eye className="h-4 w-4" />
+													{loadingOrderDetails
+														? "Loading..."
+														: "Preview"}
+												</Button>
+											</TableCell>
+										</TableRow>
+									))}
+								</TableBody>
+							</Table>
+						</div>
 					)}
 				</CardContent>
 			</Card>
 
 			{/* Invoice Preview Dialog */}
 			<Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-				<DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle className="flex items-center justify-between">
-							<span>
+				<DialogContent className="w-full max-w-6xl h-[95vh] p-0 gap-0">
+					<DialogHeader className="px-6 py-4 border-b bg-gray-50">
+						<DialogTitle className="flex items-center justify-between p-4">
+							<span className="text-lg font-semibold">
 								Invoice Preview - Order #
 								{selectedOrder?.order_id}
 							</span>
-							<div className="flex gap-2">
-								<Button
-									onClick={handlePrint}
-									className="flex items-center gap-2"
-								>
-									<Download className="h-4 w-4" />
-									Print PDF
-								</Button>
-							</div>
+							<Button
+								onClick={handlePrint}
+								className="flex items-center gap-2"
+								disabled={!selectedOrder}
+								size="sm"
+							>
+								<Download className="h-4 w-4" />
+								Print PDF
+							</Button>
 						</DialogTitle>
 					</DialogHeader>
 
-					<div ref={printRef}>
-						{selectedOrder && (
-							<InvoicePreview orderData={selectedOrder} />
-						)}
+					<div className="flex-1 overflow-y-auto">
+						<div className="p-6">
+							<div ref={printRef}>
+								{selectedOrder && (
+									<InvoicePreview orderData={selectedOrder} />
+								)}
+							</div>
+						</div>
 					</div>
 				</DialogContent>
 			</Dialog>

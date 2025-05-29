@@ -1,7 +1,6 @@
 // file: ./src/pages/LoginPage.tsx
-
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
 	Card,
 	CardContent,
@@ -14,12 +13,18 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 const LoginPage = () => {
 	const [phoneNumber, setPhoneNumber] = useState("");
 	const [password, setPassword] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
 	const navigate = useNavigate();
+	const location = useLocation();
+	const { login } = useAuth();
+
+	// Get the intended destination from location state
+	const from = location.state?.from?.pathname || "/dashboard";
 
 	const handleLogin = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -54,9 +59,19 @@ const LoginPage = () => {
 
 			if (response.ok) {
 				toast.success("Login successful!");
-				// Store user info if needed
-				localStorage.setItem("userPhone", phoneNumber);
-				navigate("/dashboard");
+
+				// Create user object with available data
+				const userData = {
+					phone: phoneNumber,
+					shopname: data.shopname || "",
+					manager: data.manager || "",
+				};
+
+				// Update authentication state
+				login(userData);
+
+				// Navigate to intended destination or dashboard
+				navigate(from, { replace: true });
 			} else {
 				toast.error(data.error || "Login failed");
 			}
@@ -69,24 +84,24 @@ const LoginPage = () => {
 	};
 
 	return (
-		<div className="flex items-center justify-center min-h-screen bg-gray-50">
+		<div className="min-h-screen flex items-center justify-center bg-gray-50">
 			<Card className="w-full max-w-md">
-				<CardHeader>
-					<CardTitle className="text-2xl text-center">
-						Login
+				<CardHeader className="space-y-1">
+					<CardTitle className="text-2xl font-bold text-center">
+						Pharmacy Login
 					</CardTitle>
 					<CardDescription className="text-center">
-						Enter your credentials to access the Medicine Dashboard
+						Enter your credentials to access your account
 					</CardDescription>
 				</CardHeader>
-				<form onSubmit={handleLogin} className="grid gap-4">
+				<form onSubmit={handleLogin}>
 					<CardContent className="space-y-4">
 						<div className="space-y-2">
-							<Label htmlFor="phoneNumber">Phone Number</Label>
+							<Label htmlFor="phone">Phone Number</Label>
 							<Input
-								id="phoneNumber"
+								id="phone"
 								type="tel"
-								placeholder="10-digit phone number"
+								placeholder="Enter 10-digit phone number"
 								value={phoneNumber}
 								onChange={(e) => setPhoneNumber(e.target.value)}
 								maxLength={10}
@@ -98,29 +113,29 @@ const LoginPage = () => {
 							<Input
 								id="password"
 								type="password"
-								placeholder="••••••••"
+								placeholder="Enter your password"
 								value={password}
 								onChange={(e) => setPassword(e.target.value)}
 								required
 							/>
 						</div>
 					</CardContent>
-					<CardFooter className="flex flex-col space-y-4">
+					<CardFooter className="flex flex-col space-y-4 pt-4">
 						<Button
 							type="submit"
 							className="w-full"
 							disabled={isLoading}
 						>
-							{isLoading ? "Logging in..." : "Login"}
+							{isLoading ? "Signing in..." : "Sign In"}
 						</Button>
 						<div className="text-center text-sm">
 							Don't have an account?{" "}
 							<Button
 								variant="link"
-								className="p-0"
+								className="p-0 h-auto"
 								onClick={() => navigate("/register")}
 							>
-								Register now
+								Register here
 							</Button>
 						</div>
 					</CardFooter>

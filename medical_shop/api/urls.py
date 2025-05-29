@@ -9,6 +9,7 @@ from .views import (
     delete_user,
     create_order,
     get_orders,
+    get_order_items,
     update_order,
     delete_order,
     add_order_items,
@@ -48,6 +49,7 @@ urlpatterns = [
     
     # ==================== ORDER ITEMS URLS ====================
     path('order-items/', add_order_items, name='add_order_items'),  # POST
+    path('orders/<int:order_id>/items/', get_order_items, name='get_order_items'),  # GET
     
     # ==================== PAYMENT URLS ====================
     path('payments/', get_payments, name='get_payments'),  # GET all
