@@ -36,6 +36,47 @@ export interface ApiBatch {
 	brand_name?: string;
 }
 
+export interface MedicineBatchResult {
+	product_id: string;
+	generic_name: string;
+	brand_name: string;
+	gst: number;
+	batch_id: number;
+	batch_number: string;
+	expiry_date: string;
+	average_purchase_price: number;
+	selling_price: number;
+	quantity_in_stock: number;
+}
+
+export interface MedicineSuggestion {
+	product_id: string;
+	generic_name: string;
+	brand_name: string;
+	min_price: number;
+	total_stock: number;
+}
+
+export interface OrderData {
+	customer_name: string;
+	customer_number: string;
+	doctor_name?: string;
+	total_amount: number;
+	discount_percentage: number;
+}
+
+export interface OrderItem {
+	product_id: string;
+	batch_id: number; // Changed from batch_number
+	quantity: number;
+	unit_price: number;
+}
+
+export interface PaymentData {
+	payment_type: "cash" | "upi";
+	transaction_amount: number;
+}
+
 class ApiService {
 	private async makeRequest(endpoint: string, options: RequestInit = {}) {
 		const url = `${API_BASE_URL}${endpoint}`;
@@ -113,11 +154,22 @@ class ApiService {
 		});
 	}
 
-	async searchMedicines(query: string): Promise<SearchResult[]> {
+	// Enhanced search methods
+	async searchMedicinesWithBatches(
+		query: string
+	): Promise<MedicineBatchResult[]> {
 		if (!query.trim()) return [];
-		return this.makeRequest(`/search/?search=${encodeURIComponent(query)}`);
+		return this.makeRequest(
+			`/search/medicines/?search=${encodeURIComponent(query)}`
+		);
 	}
 
+	async getMedicineSuggestions(query: string): Promise<MedicineSuggestion[]> {
+		if (!query.trim() || query.length < 2) return [];
+		return this.makeRequest(
+			`/search/suggestions/?q=${encodeURIComponent(query)}`
+		);
+	}
 	async getBatches(): Promise<ApiBatch[]> {
 		return this.makeRequest("/batches/");
 	}
@@ -149,6 +201,59 @@ class ApiService {
 		return this.makeRequest(`/batches/${batchId}/`, {
 			method: "DELETE",
 		});
+	}
+
+	// Order operations
+	async createOrder(
+		orderData: OrderData
+	): Promise<{ message: string; order_id: number }> {
+		return this.makeRequest("/orders/create/", {
+			method: "POST",
+			body: JSON.stringify(orderData),
+		});
+	}
+
+	async addOrderItems(
+		items: OrderItem[]
+	): Promise<{ message: string; order_id: number }> {
+		return this.makeRequest("/order-items/", {
+			method: "POST",
+			body: JSON.stringify({ items }),
+		});
+	}
+
+	async addPayments(
+		payments: PaymentData[]
+	): Promise<{ message: string; order_id: number }> {
+		return this.makeRequest("/payments/add/", {
+			method: "POST",
+			body: JSON.stringify({ payments }),
+		});
+	}
+
+	async processCompleteOrder(
+		orderData: OrderData,
+		items: OrderItem[],
+		payments: PaymentData[]
+	): Promise<{ success: boolean; order_id?: number; error?: string }> {
+		try {
+			// Step 1: Create order
+			const orderResult = await this.createOrder(orderData);
+
+			// Step 2: Add order items
+			await this.addOrderItems(items);
+
+			// Step 3: Add payments
+			await this.addPayments(payments);
+
+			return { success: true, order_id: orderResult.order_id };
+		} catch (error) {
+			console.error("Complete order processing failed:", error);
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : "Unknown error",
+			};
+		}
 	}
 }
 

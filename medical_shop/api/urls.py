@@ -16,7 +16,8 @@ from .views import (
     update_payment,
     delete_payment,
     get_payments,
-    search_items,
+    get_medicine_suggestions,
+    search_medicines_with_batches,
     get_dashboard_stats,
     get_expiring_soon,
     get_low_stock,
@@ -54,7 +55,9 @@ urlpatterns = [
     path('payments/<int:order_id>/delete/', delete_payment, name='delete_payment'),  # DELETE
     
     # ==================== SEARCH URLS ====================
-    path('search/', search_items, name='search_items'),  # GET with query param
+    path('search/medicines/', search_medicines_with_batches, name='search_medicines_with_batches'),
+    path('search/suggestions/', get_medicine_suggestions, name='get_medicine_suggestions'),
+
     
     # ==================== DASHBOARD/ANALYTICS URLS ====================
     path('dashboard/stats/', get_dashboard_stats, name='dashboard_stats'),  # GET

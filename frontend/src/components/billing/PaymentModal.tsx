@@ -1,9 +1,7 @@
 // file: ./src/components/billing/PaymentModal.tsx
-
 import { useState, useEffect } from "react";
 import { Smartphone, BadgeDollarSign, Check } from "lucide-react";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -18,12 +16,14 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { PaymentInfo } from "@/types/billing";
 
 interface PaymentModalProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	finalAmount: number;
-	onPaymentComplete: () => void;
+	onPaymentComplete: (paymentInfo: PaymentInfo) => Promise<void>;
+	isProcessing?: boolean;
 }
 
 export function PaymentModal({
@@ -31,16 +31,16 @@ export function PaymentModal({
 	onOpenChange,
 	finalAmount,
 	onPaymentComplete,
+	isProcessing = false,
 }: PaymentModalProps) {
 	const [paymentMethod, setPaymentMethod] = useState<
 		"cash" | "upi" | "split"
 	>("cash");
-	const [cashAmount, setCashAmount] = useState<number>(finalAmount);
-	const [upiAmount, setUpiAmount] = useState<number>(0);
-	const [upiId, setUpiId] = useState<string>("");
-	const [isProcessing, setIsProcessing] = useState<boolean>(false);
-	const [changeAmount, setChangeAmount] = useState<number>(0);
-	const [receivedCash, setReceivedCash] = useState<number>(finalAmount);
+	const [cashAmount, setCashAmount] = useState(finalAmount);
+	const [upiAmount, setUpiAmount] = useState(0);
+	const [upiId, setUpiId] = useState("");
+	const [receivedCash, setReceivedCash] = useState(finalAmount);
+	const [changeAmount, setChangeAmount] = useState(0);
 
 	// Reset state when modal opens or amount changes
 	useEffect(() => {
@@ -54,28 +54,32 @@ export function PaymentModal({
 
 	// Calculate change amount for cash payment
 	useEffect(() => {
-		if (receivedCash > cashAmount) {
+		if (paymentMethod === "cash" && receivedCash > finalAmount) {
+			setChangeAmount(receivedCash - finalAmount);
+		} else if (paymentMethod === "split" && receivedCash > cashAmount) {
 			setChangeAmount(receivedCash - cashAmount);
 		} else {
 			setChangeAmount(0);
 		}
-	}, [receivedCash, cashAmount]);
+	}, [receivedCash, finalAmount, cashAmount, paymentMethod]);
 
 	// Handle payment method change
 	const handlePaymentMethodChange = (value: string) => {
 		const method = value as "cash" | "upi" | "split";
 		setPaymentMethod(method);
-
 		if (method === "cash") {
 			setCashAmount(finalAmount);
 			setUpiAmount(0);
+			setReceivedCash(finalAmount);
 		} else if (method === "upi") {
 			setCashAmount(0);
 			setUpiAmount(finalAmount);
+			setReceivedCash(0);
 		} else {
 			// Default split to 50/50
-			setCashAmount(finalAmount / 2);
-			setUpiAmount(finalAmount / 2);
+			setCashAmount(Math.round(finalAmount / 2));
+			setUpiAmount(finalAmount - Math.round(finalAmount / 2));
+			setReceivedCash(Math.round(finalAmount / 2));
 		}
 	};
 
@@ -84,6 +88,7 @@ export function PaymentModal({
 		const newCashAmount = Math.min(Math.max(0, value), finalAmount);
 		setCashAmount(newCashAmount);
 		setUpiAmount(finalAmount - newCashAmount);
+		setReceivedCash(newCashAmount);
 	};
 
 	// Handle UPI amount change when split payment
@@ -94,33 +99,44 @@ export function PaymentModal({
 	};
 
 	// Process payment
-	const handleProcessPayment = () => {
+	const handleProcessPayment = async () => {
 		if (paymentMethod === "upi" || paymentMethod === "split") {
-			if (!upiId) {
-				toast.error("Please enter a valid UPI ID");
-				return;
-			}
-
-			if (upiAmount > 0 && !upiId.includes("@")) {
+			if (upiAmount > 0 && (!upiId || !upiId.includes("@"))) {
 				toast.error("Please enter a valid UPI ID with '@' symbol");
 				return;
 			}
 		}
 
-		setIsProcessing(true);
+		if (paymentMethod === "cash" && receivedCash < finalAmount) {
+			toast.error("Received cash amount is less than the bill amount");
+			return;
+		}
 
-		// Simulating payment processing
-		setTimeout(() => {
-			setIsProcessing(false);
-			toast.success("Payment processed successfully");
-			onPaymentComplete();
-			onOpenChange(false);
-		}, 1500);
+		if (paymentMethod === "split" && receivedCash < cashAmount) {
+			toast.error("Received cash amount is less than the cash portion");
+			return;
+		}
+
+		const paymentInfo: PaymentInfo = {
+			method: paymentMethod,
+			cashAmount,
+			upiAmount,
+			upiId: upiId || undefined,
+			receivedCash: receivedCash || undefined,
+			changeAmount: changeAmount || undefined,
+		};
+
+		try {
+			await onPaymentComplete(paymentInfo);
+		} catch (error) {
+			console.error("Payment processing failed:", error);
+			toast.error("Payment processing failed. Please try again.");
+		}
 	};
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-md max-h-11/12 overflow-y-auto">
+			<DialogContent className="sm:max-w-[500px]">
 				<DialogHeader>
 					<DialogTitle>Payment</DialogTitle>
 					<DialogDescription>
@@ -128,71 +144,74 @@ export function PaymentModal({
 					</DialogDescription>
 				</DialogHeader>
 
-				<RadioGroup
-					defaultValue="cash"
+				<Tabs
 					value={paymentMethod}
 					onValueChange={handlePaymentMethodChange}
-					className="grid grid-cols-3 gap-4 pt-4"
 				>
-					<Label
-						htmlFor="cash"
-						className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary cursor-pointer"
-					>
-						<RadioGroupItem
-							value="cash"
-							id="cash"
-							className="sr-only"
-						/>
-						<BadgeDollarSign className="mb-2 h-6 w-6" />
-						<span className="text-center text-sm font-medium">
-							Cash
-						</span>
-					</Label>
-					<Label
-						htmlFor="upi"
-						className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary cursor-pointer"
-					>
-						<RadioGroupItem
-							value="upi"
-							id="upi"
-							className="sr-only"
-						/>
-						<Smartphone className="mb-2 h-6 w-6" />
-						<span className="text-center text-sm font-medium">
-							UPI
-						</span>
-					</Label>
-					<Label
-						htmlFor="split"
-						className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary cursor-pointer"
-					>
-						<RadioGroupItem
-							value="split"
-							id="split"
-							className="sr-only"
-						/>
-						<div className="flex mb-2">
-							<BadgeDollarSign className="h-6 w-6" />
-							<span className="mx-1">+</span>
-							<Smartphone className="h-6 w-6" />
-						</div>
-						<span className="text-center text-sm font-medium">
-							Split
-						</span>
-					</Label>
-				</RadioGroup>
-
-				<Tabs defaultValue="payment-details" className="w-full">
-					<TabsList className="grid grid-cols-1 w-full">
-						<TabsTrigger value="payment-details">
-							Payment Details
-						</TabsTrigger>
+					<TabsList className="grid w-full grid-cols-3">
+						<TabsTrigger value="cash">Cash</TabsTrigger>
+						<TabsTrigger value="upi">UPI</TabsTrigger>
+						<TabsTrigger value="split">Split</TabsTrigger>
 					</TabsList>
-					<TabsContent value="payment-details" className="mt-4">
-						{(paymentMethod === "cash" ||
-							paymentMethod === "split") && (
-							<Card className="mb-4">
-								<CardContent className="p-4 space-y-4">
+
+					<TabsContent value="cash" className="space-y-4">
+						<Card>
+							<CardContent className="pt-6 space-y-4">
+								<div className="space-y-2">
+									<Label htmlFor="received-cash">
+										Received Cash (₹)
+									</Label>
+									<Input
+										id="received-cash"
+										type="number"
+										step="0.01"
+										value={receivedCash}
+										onChange={(e) =>
+											setReceivedCash(
+												parseFloat(e.target.value) || 0
+											)
+										}
+									/>
+								</div>
+								{changeAmount > 0 && (
+									<div className="p-3 bg-green-50 rounded-md">
+										<div className="text-sm font-medium text-green-800">
+											Change to return: ₹
+											{changeAmount.toFixed(2)}
+										</div>
+									</div>
+								)}
+							</CardContent>
+						</Card>
+					</TabsContent>
+
+					<TabsContent value="upi" className="space-y-4">
+						<Card>
+							<CardContent className="pt-6 space-y-4">
+								<div className="space-y-2">
+									<Label htmlFor="upi-id">UPI ID</Label>
+									<Input
+										id="upi-id"
+										placeholder="customer@paytm"
+										value={upiId}
+										onChange={(e) =>
+											setUpiId(e.target.value)
+										}
+									/>
+								</div>
+								<div className="p-3 bg-blue-50 rounded-md">
+									<div className="text-sm text-blue-800">
+										Amount: ₹{finalAmount.toFixed(2)}
+									</div>
+								</div>
+							</CardContent>
+						</Card>
+					</TabsContent>
+
+					<TabsContent value="split" className="space-y-4">
+						<Card>
+							<CardContent className="pt-6 space-y-4">
+								<div className="grid grid-cols-2 gap-4">
 									<div className="space-y-2">
 										<Label htmlFor="cash-amount">
 											Cash Amount (₹)
@@ -200,121 +219,101 @@ export function PaymentModal({
 										<Input
 											id="cash-amount"
 											type="number"
-											min="0"
-											max={finalAmount}
+											step="0.01"
 											value={cashAmount}
 											onChange={(e) =>
-												paymentMethod === "split" &&
 												handleCashAmountChange(
 													parseFloat(
 														e.target.value
 													) || 0
 												)
 											}
-											className="col-span-3"
-											readOnly={paymentMethod === "cash"}
 										/>
 									</div>
-
 									<div className="space-y-2">
-										<Label htmlFor="received-cash">
-											Received Cash (₹)
+										<Label htmlFor="upi-amount">
+											UPI Amount (₹)
 										</Label>
 										<Input
-											id="received-cash"
+											id="upi-amount"
 											type="number"
-											min={cashAmount}
-											value={receivedCash}
+											step="0.01"
+											value={upiAmount}
 											onChange={(e) =>
-												setReceivedCash(
+												handleUpiAmountChange(
 													parseFloat(
 														e.target.value
-													) || cashAmount
+													) || 0
 												)
 											}
-											className="col-span-3"
 										/>
 									</div>
+								</div>
 
-									{changeAmount > 0 && (
-										<div className="flex justify-between p-2 bg-green-50 rounded-md">
-											<span>Change to return:</span>
-											<span className="font-semibold">
-												₹{changeAmount.toFixed(2)}
-											</span>
-										</div>
-									)}
-								</CardContent>
-							</Card>
-						)}
+								<div className="space-y-2">
+									<Label htmlFor="received-cash-split">
+										Received Cash (₹)
+									</Label>
+									<Input
+										id="received-cash-split"
+										type="number"
+										step="0.01"
+										value={receivedCash}
+										onChange={(e) =>
+											setReceivedCash(
+												parseFloat(e.target.value) || 0
+											)
+										}
+									/>
+								</div>
 
-						{(paymentMethod === "upi" ||
-							paymentMethod === "split") && (
-							<Card>
-								<CardContent className="p-4 space-y-4">
-									{paymentMethod === "split" && (
-										<div className="space-y-2">
-											<Label htmlFor="upi-amount">
-												UPI Amount (₹)
-											</Label>
-											<Input
-												id="upi-amount"
-												type="number"
-												min="0"
-												max={finalAmount}
-												value={upiAmount}
-												onChange={(e) =>
-													handleUpiAmountChange(
-														parseFloat(
-															e.target.value
-														) || 0
-													)
-												}
-												className="col-span-3"
-											/>
-										</div>
-									)}
-
+								{upiAmount > 0 && (
 									<div className="space-y-2">
-										<Label htmlFor="upi-id">UPI ID</Label>
+										<Label htmlFor="upi-id-split">
+											UPI ID
+										</Label>
 										<Input
-											id="upi-id"
-											type="text"
-											placeholder="user@upi"
+											id="upi-id-split"
+											placeholder="customer@paytm"
 											value={upiId}
 											onChange={(e) =>
 												setUpiId(e.target.value)
 											}
-											className="col-span-3"
 										/>
 									</div>
-								</CardContent>
-							</Card>
-						)}
+								)}
+
+								{changeAmount > 0 && (
+									<div className="p-3 bg-green-50 rounded-md">
+										<div className="text-sm font-medium text-green-800">
+											Change to return: ₹
+											{changeAmount.toFixed(2)}
+										</div>
+									</div>
+								)}
+							</CardContent>
+						</Card>
 					</TabsContent>
 				</Tabs>
 
-				<DialogFooter className="flex flex-col sm:flex-row sm:justify-between gap-4">
-					<div className="flex flex-col w-full sm:w-auto">
-						<div className="font-semibold flex justify-between sm:flex-col">
-							<span className="text-muted-foreground">
-								Total:
-							</span>
-							<span>₹{finalAmount.toFixed(2)}</span>
-						</div>
-					</div>
+				<DialogFooter>
 					<Button
-						type="submit"
+						variant="outline"
+						onClick={() => onOpenChange(false)}
+						disabled={isProcessing}
+					>
+						Cancel
+					</Button>
+					<Button
 						onClick={handleProcessPayment}
 						disabled={isProcessing}
-						className="w-full sm:w-auto"
 					>
 						{isProcessing ? (
 							"Processing..."
 						) : (
 							<>
-								Process Payment{" "}
-								<Check className="ml-2 h-4 w-4" />
+								<Check className="mr-2 h-4 w-4" />
+								Process Payment
 							</>
 						)}
 					</Button>

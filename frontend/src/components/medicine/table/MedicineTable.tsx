@@ -21,7 +21,7 @@ import { Medicine, MedicineTableProps, SearchResult } from "@/types/medicine";
 import { MedicineActions } from "./MedicineActions";
 import { EditMedicineDialog } from "../dialogs/EditMedicineDialog";
 import { DeleteConfirmationDialog } from "../dialogs/DeleteConfirmationDialog";
-import { apiService } from "@/services/api";
+import { apiService, MedicineSuggestion } from "@/services/api";
 import { debounce } from "@/utils/medicine";
 import { toast } from "sonner";
 
@@ -33,7 +33,9 @@ export function MedicineTable({
 	const [searchTerm, setSearchTerm] = useState("");
 	const [selectedCategory, setSelectedCategory] = useState("All");
 	const [requiresPrescription, setRequiresPrescription] = useState("All");
-	const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+	const [searchResults, setSearchResults] = useState<MedicineSuggestion[]>(
+		[]
+	);
 	const [isSearching, setIsSearching] = useState(false);
 	const [showSearchResults, setShowSearchResults] = useState(false);
 
@@ -59,7 +61,7 @@ export function MedicineTable({
 
 			try {
 				setIsSearching(true);
-				const results = await apiService.searchMedicines(query);
+				const results = await apiService.getMedicineSuggestions(query);
 				setSearchResults(results);
 				setShowSearchResults(true);
 			} catch (error) {
@@ -206,11 +208,8 @@ export function MedicineTable({
 								<TableHead>Product ID</TableHead>
 								<TableHead>Generic Name</TableHead>
 								<TableHead>Brand Name</TableHead>
-								<TableHead>Batch Number</TableHead>
-								<TableHead>Expiry Date</TableHead>
-								<TableHead>Purchase Price</TableHead>
-								<TableHead>Selling Price</TableHead>
-								<TableHead>Stock Quantity</TableHead>
+								<TableHead>Min Price</TableHead>
+								<TableHead>Total Stock</TableHead>
 							</>
 						) : (
 							<>
@@ -232,39 +231,26 @@ export function MedicineTable({
 				<TableBody>
 					{showSearchResults ? (
 						searchResults.length > 0 ? (
-							searchResults.map((result, index) => (
-								<TableRow
-									key={`${result.product_id}-${result.batch_number}-${index}`}
-								>
+							searchResults.map((result) => (
+								<TableRow key={result.product_id}>
 									<TableCell>{result.product_id}</TableCell>
 									<TableCell>{result.generic_name}</TableCell>
 									<TableCell>{result.brand_name}</TableCell>
-									<TableCell>{result.batch_number}</TableCell>
-									<TableCell>
-										{new Date(
-											result.expiry_date
-										).toLocaleDateString()}
-									</TableCell>
 									<TableCell>
 										₹
-										{result.average_purchase_price?.toFixed(
+										{Number(result.min_price || 0).toFixed(
 											2
-										) || "N/A"}
+										)}
 									</TableCell>
 									<TableCell>
-										₹
-										{result.selling_price?.toFixed(2) ||
-											"N/A"}
-									</TableCell>
-									<TableCell>
-										{result.quantity_in_stock || 0}
+										{result.total_stock || 0}
 									</TableCell>
 								</TableRow>
 							))
 						) : (
 							<TableRow>
 								<TableCell
-									colSpan={8}
+									colSpan={5}
 									className="text-center py-4"
 								>
 									{isSearching

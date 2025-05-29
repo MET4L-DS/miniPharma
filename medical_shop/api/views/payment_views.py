@@ -24,7 +24,7 @@ def add_payment(request):
 
             # Get the last order_id
             with connection.cursor() as cursor:
-                cursor.execute("SELECT MAX(order_id) FROM api_orders")
+                cursor.execute("SELECT MAX(order_id) FROM api_order")
                 last_order_id = cursor.fetchone()[0]
 
                 if not last_order_id:
@@ -120,7 +120,7 @@ def get_payments(request):
                     SELECT p.order_id, p.payment_type, p.transaction_amount,
                            o.customer_name, o.total_amount, o.order_date
                     FROM api_payment p
-                    LEFT JOIN api_orders o ON p.order_id = o.order_id
+                    LEFT JOIN api_order o ON p.order_id = o.order_id
                     ORDER BY o.order_date DESC
                 """)
                 columns = [col[0] for col in cursor.description]

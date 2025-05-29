@@ -15,7 +15,7 @@ def create_order(request):
             
             with connection.cursor() as cursor:
                 cursor.execute("""
-                    INSERT INTO api_orders (customer_name, customer_number, doctor_name, 
+                    INSERT INTO api_order (customer_name, customer_number, doctor_name, 
                                           total_amount, discount_percentage)
                     VALUES (%s, %s, %s, %s, %s)
                 """, [
@@ -25,7 +25,7 @@ def create_order(request):
                 ])
                 
                 # Get the created order ID
-                cursor.execute("SELECT LASTVAL()")
+                cursor.execute("SELECT LAST_INSERT_ID()")
                 order_id = cursor.fetchone()[0]
 
             return JsonResponse({'message': 'Order created successfully', 'order_id': order_id}, status=201)
@@ -47,7 +47,7 @@ def get_orders(request):
                 cursor.execute("""
                     SELECT order_id, customer_name, customer_number, doctor_name, 
                            total_amount, discount_percentage, order_date
-                    FROM api_orders
+                    FROM api_order
                     ORDER BY order_date DESC
                 """)
                 columns = [col[0] for col in cursor.description]
@@ -70,7 +70,7 @@ def update_order(request, order_id):
             
             with connection.cursor() as cursor:
                 # Check if order exists
-                cursor.execute("SELECT 1 FROM api_orders WHERE order_id = %s", [order_id])
+                cursor.execute("SELECT 1 FROM api_order WHERE order_id = %s", [order_id])
                 if not cursor.fetchone():
                     return JsonResponse({'error': 'Order not found'}, status=404)
                 
@@ -88,7 +88,7 @@ def update_order(request, order_id):
                 
                 values.append(order_id)
                 cursor.execute(f"""
-                    UPDATE api_orders 
+                    UPDATE api_order 
                     SET {', '.join(update_fields)}
                     WHERE order_id = %s
                 """, values)
@@ -110,14 +110,14 @@ def delete_order(request, order_id):
         try:
             with connection.cursor() as cursor:
                 # Check if order exists
-                cursor.execute("SELECT 1 FROM api_orders WHERE order_id = %s", [order_id])
+                cursor.execute("SELECT 1 FROM api_order WHERE order_id = %s", [order_id])
                 if not cursor.fetchone():
                     return JsonResponse({'error': 'Order not found'}, status=404)
                 
                 # Delete in order: payment -> order_items -> order
                 cursor.execute("DELETE FROM api_payment WHERE order_id = %s", [order_id])
-                cursor.execute("DELETE FROM api_order_items WHERE order_id = %s", [order_id])
-                cursor.execute("DELETE FROM api_orders WHERE order_id = %s", [order_id])
+                cursor.execute("DELETE FROM api_orderitem WHERE order_id = %s", [order_id])
+                cursor.execute("DELETE FROM api_order WHERE order_id = %s", [order_id])
 
             return JsonResponse({'message': 'Order deleted successfully'}, status=200)
 
@@ -140,13 +140,13 @@ def add_order_items(request):
 
             # Validate each item
             for item in order_items:
-                required_fields = ['product_id', 'batch_number', 'quantity', 'unit_price']
+                required_fields = ['product_id', 'batch_id', 'quantity', 'unit_price']
                 if not all(key in item for key in required_fields):
                     return JsonResponse({'error': f'Each item must have: {", ".join(required_fields)}'}, status=400)
 
             # Get the last order_id
             with connection.cursor() as cursor:
-                cursor.execute("SELECT MAX(order_id) FROM api_orders")
+                cursor.execute("SELECT MAX(order_id) FROM api_order")
                 last_order_id = cursor.fetchone()[0]
                 
                 if not last_order_id:
@@ -155,31 +155,37 @@ def add_order_items(request):
                 # Use transaction for data consistency
                 with transaction.atomic():
                     for item in order_items:
-                        # Insert order item
+                        # Insert order item with product_id
                         cursor.execute("""
-                            INSERT INTO api_order_items (order_id, product_id, batch_number, unit_price, quantity)
+                            INSERT INTO api_orderitem 
+                            (order_id, batch_id, product_id, unit_price, quantity)
                             VALUES (%s, %s, %s, %s, %s)
-                        """, [last_order_id, item['product_id'], item['batch_number'], 
-                              item['unit_price'], item['quantity']])
+                        """, [
+                            last_order_id, 
+                            item['batch_id'],
+                            item['product_id'],
+                            item['unit_price'], 
+                            item['quantity']
+                        ])
 
                         # Update batch stock
                         cursor.execute("""
                             UPDATE api_batch
                             SET quantity_in_stock = quantity_in_stock - %s
-                            WHERE product_id = %s AND batch_number = %s
-                        """, [item['quantity'], item['product_id'], item['batch_number']])
+                            WHERE id = %s
+                        """, [item['quantity'], item['batch_id']])
 
                         # Check if stock is sufficient
                         cursor.execute("""
                             SELECT quantity_in_stock
                             FROM api_batch
-                            WHERE product_id = %s AND batch_number = %s
-                        """, [item['product_id'], item['batch_number']])
+                            WHERE id = %s
+                        """, [item['batch_id']])
                         
                         result = cursor.fetchone()
                         if not result or result[0] < 0:
                             return JsonResponse({
-                                'error': f'Insufficient stock for product {item["product_id"]}, batch {item["batch_number"]}'
+                                'error': f'Insufficient stock for product {item["product_id"]}, batch {item["batch_id"]}'
                             }, status=400)
 
             return JsonResponse({'message': 'Order items added successfully', 'order_id': last_order_id}, status=201)

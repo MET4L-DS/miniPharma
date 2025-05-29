@@ -1,5 +1,4 @@
 // file: ./src/pages/BillingPage.tsx
-
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { AddItemCard } from "@/components/billing/AddItemCard";
@@ -7,131 +6,185 @@ import { BillSummaryCard } from "@/components/billing/BillSummaryCard";
 import { BillItemsTable } from "@/components/billing/BillItemsTable";
 import { PaymentModal } from "@/components/billing/PaymentModal";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-
-// Define the BillItem interface
-interface BillItem {
-	id: string;
-	medicineName: string;
-	quantity: number;
-	unitPrice: number;
-	amount: number;
-}
-
-// Define the sample data for medicines
-const sampleMedicines = [
-	{ name: "Paracetamol", price: 10.0 },
-	{ name: "Amoxicillin", price: 20.5 },
-	{ name: "Metformin", price: 15.75 },
-	{ name: "Atorvastatin", price: 25.0 },
-	{ name: "Ranitidine", price: 12.5 },
-];
+import {
+	BillItem,
+	CustomerInfo,
+	PaymentInfo,
+	OrderSummary,
+} from "@/types/billing";
+import { apiService } from "@/services/api";
 
 export default function BillingPage() {
-	const [billItems, setBillItems] = useState<BillItem[]>([
-		{
-			id: "1",
-			medicineName: "Paracetamol",
-			quantity: 2,
-			unitPrice: 10.0,
-			amount: 20.0,
-		},
-	]);
-
-	const [discountPercentage, setDiscountPercentage] = useState(0);
-	const [phoneNumber, setPhoneNumber] = useState("");
-	const [newItem, setNewItem] = useState<{
-		medicineName: string;
-		quantity: number;
-	}>({
-		medicineName: "",
-		quantity: 1,
+	const [billItems, setBillItems] = useState<BillItem[]>([]);
+	const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({
+		name: "",
+		phoneNumber: "",
+		doctorName: "",
 	});
-
-	// Payment modal state
+	const [discountPercentage, setDiscountPercentage] = useState(0);
 	const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-	const [billGenerated, setBillGenerated] = useState(false);
+	const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
-	// Calculate the total, discount, and final amounts
-	const { totalAmount, discountAmount, finalAmount } = useMemo(() => {
-		const total = billItems.reduce((sum, item) => sum + item.amount, 0);
-		const discount = (total * discountPercentage) / 100;
-		const final = total - discount;
+	// Calculate amounts including GST
+	const orderSummary: OrderSummary = useMemo(() => {
+		const subtotal = billItems.reduce((sum, item) => {
+			const itemSubtotal =
+				(item.unitPrice * item.quantity) / (1 + item.gst / 100);
+			return sum + itemSubtotal;
+		}, 0);
+
+		const gstAmount = billItems.reduce((sum, item) => {
+			const itemSubtotal =
+				(item.unitPrice * item.quantity) / (1 + item.gst / 100);
+			const itemGst = itemSubtotal * (item.gst / 100);
+			return sum + itemGst;
+		}, 0);
+
+		const totalAmount = subtotal + gstAmount;
+		const discountAmount = (totalAmount * discountPercentage) / 100;
+		const finalAmount = totalAmount - discountAmount;
 
 		return {
-			totalAmount: total,
-			discountAmount: discount,
-			finalAmount: final,
+			totalAmount,
+			discountPercentage,
+			discountAmount,
+			finalAmount,
+			gstAmount,
 		};
 	}, [billItems, discountPercentage]);
 
-	// Handle adding a new item
-	const handleAddItem = () => {
-		if (!newItem.medicineName || newItem.quantity <= 0) {
-			toast.error("Please fill all fields with valid values");
-			return;
-		}
-
-		const selectedMedicine = sampleMedicines.find(
-			(med) => med.name === newItem.medicineName
+	const handleAddItem = (item: BillItem) => {
+		// Check if item already exists
+		const existingItemIndex = billItems.findIndex(
+			(existingItem) =>
+				existingItem.product_id === item.product_id &&
+				existingItem.batch_id === item.batch_id
 		);
 
-		if (!selectedMedicine) {
-			toast.error("Medicine not found");
-			return;
+		if (existingItemIndex >= 0) {
+			// Update existing item quantity
+			const updatedItems = [...billItems];
+			const existingItem = updatedItems[existingItemIndex];
+			const newQuantity = existingItem.quantity + item.quantity;
+
+			if (newQuantity > item.availableStock) {
+				toast.error(
+					`Cannot add more. Only ${item.availableStock} units available.`
+				);
+				return;
+			}
+
+			updatedItems[existingItemIndex] = {
+				...existingItem,
+				quantity: newQuantity,
+				amount: existingItem.unitPrice * newQuantity,
+			};
+			setBillItems(updatedItems);
+		} else {
+			// Add new item
+			setBillItems([...billItems, item]);
 		}
-
-		const unitPrice = selectedMedicine.price;
-		const amount = unitPrice * newItem.quantity;
-
-		const newBillItem: BillItem = {
-			id: Date.now().toString(),
-			medicineName: newItem.medicineName,
-			quantity: newItem.quantity,
-			unitPrice: unitPrice,
-			amount: amount,
-		};
-
-		setBillItems([...billItems, newBillItem]);
-		setNewItem({
-			medicineName: "",
-			quantity: 1,
-		});
-
-		toast.success("Item added to bill");
 	};
 
-	// Handle removing an item
 	const handleRemoveItem = (id: string) => {
 		setBillItems(billItems.filter((item) => item.id !== id));
 		toast.success("Item removed from bill");
 	};
 
-	// Handle generating bill
 	const handleGenerateBill = () => {
 		if (billItems.length === 0) {
 			toast.error("Cannot generate bill with no items");
 			return;
 		}
 
-		if (!phoneNumber.trim()) {
+		if (!customerInfo.phoneNumber.trim()) {
 			toast.error("Please enter customer phone number");
 			return;
 		}
 
-		setBillGenerated(true);
+		if (customerInfo.phoneNumber.length !== 10) {
+			toast.error("Please enter a valid 10-digit phone number");
+			return;
+		}
+
 		setPaymentModalOpen(true);
 	};
 
-	// Handle payment completion
-	const handlePaymentComplete = () => {
-		toast.success("Payment completed and bill finalized");
-		// In a real app, this would save the transaction to a database
+	const handlePaymentComplete = async (paymentInfo: PaymentInfo) => {
+		setIsProcessingPayment(true);
 
-		// Reset the bill for a new transaction
-		setBillItems([]);
-		setDiscountPercentage(0);
-		setPhoneNumber("");
-		setBillGenerated(false);
+		try {
+			// Prepare order data
+			const orderData = {
+				customer_name: customerInfo.name || "Walk-in Customer",
+				customer_number: customerInfo.phoneNumber,
+				doctor_name: customerInfo.doctorName || "",
+				total_amount: orderSummary.finalAmount,
+				discount_percentage: discountPercentage,
+			};
+
+			// Prepare order items
+			// In handlePaymentComplete function
+			const orderItems = billItems.map((item) => ({
+				product_id: item.product_id,
+				batch_id: item.batch_id, // Changed from batch_number
+				quantity: item.quantity,
+				unit_price: item.unitPrice,
+			}));
+
+			// Prepare payments
+			const payments = [];
+			if (paymentInfo.method === "cash") {
+				payments.push({
+					payment_type: "cash" as const,
+					transaction_amount: orderSummary.finalAmount,
+				});
+			} else if (paymentInfo.method === "upi") {
+				payments.push({
+					payment_type: "upi" as const,
+					transaction_amount: orderSummary.finalAmount,
+				});
+			} else if (paymentInfo.method === "split") {
+				if (paymentInfo.cashAmount > 0) {
+					payments.push({
+						payment_type: "cash" as const,
+						transaction_amount: paymentInfo.cashAmount,
+					});
+				}
+				if (paymentInfo.upiAmount > 0) {
+					payments.push({
+						payment_type: "upi" as const,
+						transaction_amount: paymentInfo.upiAmount,
+					});
+				}
+			}
+
+			// Process complete order
+			const result = await apiService.processCompleteOrder(
+				orderData,
+				orderItems,
+				payments
+			);
+
+			if (result.success) {
+				toast.success(
+					`Bill generated successfully! Order ID: ${result.order_id}`
+				);
+
+				// Reset form
+				setBillItems([]);
+				setCustomerInfo({ name: "", phoneNumber: "", doctorName: "" });
+				setDiscountPercentage(0);
+				setPaymentModalOpen(false);
+			} else {
+				toast.error(result.error || "Failed to process order");
+			}
+		} catch (error) {
+			console.error("Payment processing failed:", error);
+			toast.error("Failed to process payment. Please try again.");
+		} finally {
+			setIsProcessingPayment(false);
+		}
 	};
 
 	return (
@@ -148,42 +201,37 @@ export default function BillingPage() {
 
 				<div className="grid gap-6 lg:grid-cols-3">
 					<div className="lg:col-span-2 space-y-6">
-						<AddItemCard
-							newItem={newItem}
-							setNewItem={setNewItem}
-							handleAddItem={handleAddItem}
-							sampleMedicines={sampleMedicines}
-						/>
+						<AddItemCard onAddItem={handleAddItem} />
 
 						<BillItemsTable
 							billItems={billItems}
 							handleRemoveItem={handleRemoveItem}
-							totalAmount={totalAmount}
+							totalAmount={orderSummary.totalAmount}
 							discountPercentage={discountPercentage}
-							discountAmount={discountAmount}
-							finalAmount={finalAmount}
+							discountAmount={orderSummary.discountAmount}
+							gstAmount={orderSummary.gstAmount}
+							finalAmount={orderSummary.finalAmount}
 						/>
 					</div>
 
 					<div>
 						<BillSummaryCard
+							customerInfo={customerInfo}
+							setCustomerInfo={setCustomerInfo}
 							discountPercentage={discountPercentage}
 							setDiscountPercentage={setDiscountPercentage}
-							totalAmount={totalAmount}
-							discountAmount={discountAmount}
-							finalAmount={finalAmount}
-							phoneNumber={phoneNumber}
-							setPhoneNumber={setPhoneNumber}
-							handleGenerateBill={handleGenerateBill}
+							orderSummary={orderSummary}
+							onGenerateBill={handleGenerateBill}
 						/>
 					</div>
 				</div>
 
 				<PaymentModal
 					open={paymentModalOpen}
-					onOpenChange={() => setPaymentModalOpen(false)}
-					finalAmount={finalAmount}
+					onOpenChange={setPaymentModalOpen}
+					finalAmount={orderSummary.finalAmount}
 					onPaymentComplete={handlePaymentComplete}
+					isProcessing={isProcessingPayment}
 				/>
 			</div>
 		</DashboardLayout>
