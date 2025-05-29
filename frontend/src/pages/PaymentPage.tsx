@@ -372,106 +372,131 @@ export default function PaymentPage() {
 							No payments found
 						</div>
 					) : (
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead>Order ID</TableHead>
-									<TableHead>Customer</TableHead>
-									<TableHead>Payment Type</TableHead>
-									<TableHead>Order Total</TableHead>
-									<TableHead>Cash Amount</TableHead>
-									<TableHead>UPI Amount</TableHead>
-									<TableHead>Date</TableHead>
-									<TableHead>Actions</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{payments.map((payment) => (
-									<TableRow key={payment.order_id}>
-										<TableCell className="font-medium">
-											#{payment.order_id}
-										</TableCell>
-										<TableCell>
-											{payment.customer_name ||
-												"Unknown Customer"}
-										</TableCell>
-										<TableCell>
-											{getPaymentTypeBadge(
-												payment.payment_type
-											)}
-										</TableCell>
-										<TableCell>
-											{formatCurrency(
-												payment.total_amount
-											)}
-										</TableCell>
-										<TableCell>
-											{payment.cash_amount > 0
-												? formatCurrency(
-														payment.cash_amount
-												  )
-												: "-"}
-										</TableCell>
-										<TableCell>
-											{payment.upi_amount > 0
-												? formatCurrency(
-														payment.upi_amount
-												  )
-												: "-"}
-										</TableCell>
-										<TableCell>
-											{formatDate(payment.order_date)}
-										</TableCell>
-										<TableCell>
-											<Button
-												variant="outline"
-												size="sm"
-												onClick={() =>
-													handlePreviewOrder(payment)
-												}
-												disabled={loadingOrderDetails}
-												className="flex items-center gap-2"
-											>
-												<Eye className="h-4 w-4" />
-												{loadingOrderDetails
-													? "Loading..."
-													: "Preview"}
-											</Button>
-										</TableCell>
+						<div className="overflow-x-auto">
+							<Table>
+								<TableHeader>
+									<TableRow>
+										<TableHead className="min-w-[100px]">
+											Order ID
+										</TableHead>
+										<TableHead className="min-w-[150px]">
+											Customer
+										</TableHead>
+										<TableHead className="min-w-[120px]">
+											Payment Type
+										</TableHead>
+										<TableHead className="min-w-[120px]">
+											Order Total
+										</TableHead>
+										<TableHead className="min-w-[120px]">
+											Cash Amount
+										</TableHead>
+										<TableHead className="min-w-[120px]">
+											UPI Amount
+										</TableHead>
+										<TableHead className="min-w-[150px]">
+											Date
+										</TableHead>
+										<TableHead className="min-w-[100px]">
+											Actions
+										</TableHead>
 									</TableRow>
-								))}
-							</TableBody>
-						</Table>
+								</TableHeader>
+								<TableBody>
+									{payments.map((payment) => (
+										<TableRow key={payment.order_id}>
+											<TableCell className="font-medium">
+												#{payment.order_id}
+											</TableCell>
+											<TableCell className="max-w-[200px] truncate">
+												{payment.customer_name ||
+													"Unknown Customer"}
+											</TableCell>
+											<TableCell>
+												{getPaymentTypeBadge(
+													payment.payment_type
+												)}
+											</TableCell>
+											<TableCell>
+												{formatCurrency(
+													payment.total_amount
+												)}
+											</TableCell>
+											<TableCell>
+												{payment.cash_amount > 0
+													? formatCurrency(
+															payment.cash_amount
+													  )
+													: "-"}
+											</TableCell>
+											<TableCell>
+												{payment.upi_amount > 0
+													? formatCurrency(
+															payment.upi_amount
+													  )
+													: "-"}
+											</TableCell>
+											<TableCell className="text-sm">
+												{formatDate(payment.order_date)}
+											</TableCell>
+											<TableCell>
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={() =>
+														handlePreviewOrder(
+															payment
+														)
+													}
+													disabled={
+														loadingOrderDetails
+													}
+													className="flex items-center gap-2 whitespace-nowrap"
+												>
+													<Eye className="h-4 w-4" />
+													{loadingOrderDetails
+														? "Loading..."
+														: "Preview"}
+												</Button>
+											</TableCell>
+										</TableRow>
+									))}
+								</TableBody>
+							</Table>
+						</div>
 					)}
 				</CardContent>
 			</Card>
 
 			{/* Invoice Preview Dialog */}
 			<Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-				<DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle className="flex items-center justify-between">
-							<span>
+				<DialogContent className="w-full max-w-6xl h-[95vh] p-0 gap-0">
+					<DialogHeader className="px-6 py-4 border-b bg-gray-50">
+						<DialogTitle className="flex items-center justify-between p-4">
+							<span className="text-lg font-semibold">
 								Invoice Preview - Order #
 								{selectedOrder?.order_id}
 							</span>
-							<div className="flex gap-2">
-								<Button
-									onClick={handlePrint}
-									className="flex items-center gap-2"
-									disabled={!selectedOrder}
-								>
-									<Download className="h-4 w-4" />
-									Print PDF
-								</Button>
-							</div>
+							<Button
+								onClick={handlePrint}
+								className="flex items-center gap-2"
+								disabled={!selectedOrder}
+								size="sm"
+							>
+								<Download className="h-4 w-4" />
+								Print PDF
+							</Button>
 						</DialogTitle>
 					</DialogHeader>
 
-					<div ref={printRef}>
-						{selectedOrder && (
-							<InvoicePreview orderData={selectedOrder} />
-						)}
+					<div className="flex-1 overflow-y-auto">
+						<div className="p-6">
+							<div ref={printRef}>
+								{selectedOrder && (
+									<InvoicePreview orderData={selectedOrder} />
+								)}
+							</div>
+						</div>
 					</div>
 				</DialogContent>
 			</Dialog>
