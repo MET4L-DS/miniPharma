@@ -30,8 +30,18 @@ interface PaymentData {
 	order_date: string;
 }
 
+interface MergedPaymentData {
+	order_id: number;
+	payment_type: string;
+	customer_name: string;
+	total_amount: number;
+	order_date: string;
+	cash_amount: number;
+	upi_amount: number;
+}
+
 export default function PaymentPage() {
-	const [payments, setPayments] = useState<PaymentData[]>([]);
+	const [payments, setPayments] = useState<MergedPaymentData[]>([]);
 	const [loading, setLoading] = useState(true);
 
 	useEffect(() => {
@@ -41,14 +51,78 @@ export default function PaymentPage() {
 	const fetchPayments = async () => {
 		try {
 			setLoading(true);
-			const data = await apiService.makeRequest("/payments/");
-			setPayments(data);
+			const data: PaymentData[] = await apiService.makeRequest(
+				"/payments/"
+			);
+
+			// Merge payments by order_id
+			const mergedPayments = mergePaymentsByOrder(data);
+			setPayments(mergedPayments);
 		} catch (error) {
 			console.error("Error fetching payments:", error);
 			toast.error("Failed to fetch payments");
 		} finally {
 			setLoading(false);
 		}
+	};
+
+	const mergePaymentsByOrder = (
+		payments: PaymentData[]
+	): MergedPaymentData[] => {
+		const orderMap = new Map<number, MergedPaymentData>();
+
+		payments.forEach((payment) => {
+			const orderId = payment.order_id;
+
+			if (orderMap.has(orderId)) {
+				const existing = orderMap.get(orderId)!;
+
+				// Track cash and UPI amounts separately
+				if (payment.payment_type.toLowerCase() === "cash") {
+					existing.cash_amount += payment.transaction_amount;
+				} else if (payment.payment_type.toLowerCase() === "upi") {
+					existing.upi_amount += payment.transaction_amount;
+				}
+
+				// Update payment type to show combination
+				const hasCash = existing.cash_amount > 0;
+				const hasUpi = existing.upi_amount > 0;
+
+				if (hasCash && hasUpi) {
+					existing.payment_type = "Cash + UPI";
+				} else if (hasCash) {
+					existing.payment_type = "Cash";
+				} else if (hasUpi) {
+					existing.payment_type = "UPI";
+				}
+
+				orderMap.set(orderId, existing);
+			} else {
+				// First payment for this order
+				const mergedPayment: MergedPaymentData = {
+					order_id: payment.order_id,
+					payment_type: payment.payment_type,
+					customer_name: payment.customer_name,
+					total_amount: payment.total_amount, // This is the order total from api_order table
+					order_date: payment.order_date,
+					cash_amount:
+						payment.payment_type.toLowerCase() === "cash"
+							? payment.transaction_amount
+							: 0,
+					upi_amount:
+						payment.payment_type.toLowerCase() === "upi"
+							? payment.transaction_amount
+							: 0,
+				};
+				orderMap.set(orderId, mergedPayment);
+			}
+		});
+
+		return Array.from(orderMap.values()).sort(
+			(a, b) =>
+				new Date(b.order_date).getTime() -
+				new Date(a.order_date).getTime()
+		);
 	};
 
 	const formatCurrency = (amount: number) => {
@@ -69,7 +143,17 @@ export default function PaymentPage() {
 	};
 
 	const getPaymentTypeBadge = (type: string) => {
-		const variant = type.toLowerCase() === "cash" ? "default" : "secondary";
+		let variant: "default" | "secondary" | "destructive" | "outline" =
+			"default";
+
+		if (type === "Cash") {
+			variant = "default";
+		} else if (type === "UPI") {
+			variant = "secondary";
+		} else if (type === "Cash + UPI") {
+			variant = "outline";
+		}
+
 		return (
 			<Badge variant={variant} className="capitalize">
 				{type}
@@ -77,18 +161,18 @@ export default function PaymentPage() {
 		);
 	};
 
-	// Calculate summary statistics
+	// Calculate summary statistics - sum total_amount from unique orders
 	const totalTransactions = payments.length;
-	const totalAmount = payments.reduce(
-		(sum, payment) => sum + payment.transaction_amount,
-		0
-	);
-	const cashTransactions = payments.filter(
-		(p) => p.payment_type.toLowerCase() === "cash"
-	).length;
-	const upiTransactions = payments.filter(
-		(p) => p.payment_type.toLowerCase() === "upi"
-	).length;
+	const totalAmount = payments.reduce((sum, payment) => {
+		// Sum the total_amount from each unique order
+		return sum + (payment.total_amount || 0);
+	}, 0);
+	const totalCashAmount = payments.reduce((sum, payment) => {
+		return sum + (payment.cash_amount || 0);
+	}, 0);
+	const totalUpiAmount = payments.reduce((sum, payment) => {
+		return sum + (payment.upi_amount || 0);
+	}, 0);
 
 	return (
 		<DashboardLayout
@@ -104,7 +188,7 @@ export default function PaymentPage() {
 					<Card>
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 							<CardTitle className="text-sm font-medium">
-								Total Transactions
+								Total Orders
 							</CardTitle>
 							<CreditCard className="h-4 w-4 text-muted-foreground" />
 						</CardHeader>
@@ -112,13 +196,16 @@ export default function PaymentPage() {
 							<div className="text-2xl font-bold">
 								{totalTransactions}
 							</div>
+							<p className="text-xs text-muted-foreground">
+								Unique orders with payments
+							</p>
 						</CardContent>
 					</Card>
 
 					<Card>
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 							<CardTitle className="text-sm font-medium">
-								Total Amount
+								Total Revenue
 							</CardTitle>
 							<DollarSign className="h-4 w-4 text-muted-foreground" />
 						</CardHeader>
@@ -126,34 +213,43 @@ export default function PaymentPage() {
 							<div className="text-2xl font-bold">
 								{formatCurrency(totalAmount)}
 							</div>
+							<p className="text-xs text-muted-foreground">
+								Total order value collected
+							</p>
 						</CardContent>
 					</Card>
 
 					<Card>
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 							<CardTitle className="text-sm font-medium">
-								Cash Payments
+								Total Cash
 							</CardTitle>
 							<CreditCard className="h-4 w-4 text-muted-foreground" />
 						</CardHeader>
 						<CardContent>
 							<div className="text-2xl font-bold">
-								{cashTransactions}
+								{formatCurrency(totalCashAmount)}
 							</div>
+							<p className="text-xs text-muted-foreground">
+								Cash payments received
+							</p>
 						</CardContent>
 					</Card>
 
 					<Card>
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 							<CardTitle className="text-sm font-medium">
-								UPI Payments
+								Total UPI
 							</CardTitle>
 							<CreditCard className="h-4 w-4 text-muted-foreground" />
 						</CardHeader>
 						<CardContent>
 							<div className="text-2xl font-bold">
-								{upiTransactions}
+								{formatCurrency(totalUpiAmount)}
 							</div>
+							<p className="text-xs text-muted-foreground">
+								UPI payments received
+							</p>
 						</CardContent>
 					</Card>
 				</div>
@@ -163,7 +259,8 @@ export default function PaymentPage() {
 					<CardHeader>
 						<CardTitle>Payment Transactions</CardTitle>
 						<CardDescription>
-							View all payment transactions with order details
+							View all payment transactions grouped by order with
+							combined payment methods
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
@@ -190,19 +287,20 @@ export default function PaymentPage() {
 											<TableHead>Customer</TableHead>
 											<TableHead>Payment Type</TableHead>
 											<TableHead className="text-right">
-												Transaction Amount
+												Order Total
 											</TableHead>
 											<TableHead className="text-right">
-												Order Total
+												Cash Amount
+											</TableHead>
+											<TableHead className="text-right">
+												UPI Amount
 											</TableHead>
 											<TableHead>Date</TableHead>
 										</TableRow>
 									</TableHeader>
 									<TableBody>
-										{payments.map((payment, index) => (
-											<TableRow
-												key={`${payment.order_id}-${index}`}
-											>
+										{payments.map((payment) => (
+											<TableRow key={payment.order_id}>
 												<TableCell className="font-medium">
 													#{payment.order_id}
 												</TableCell>
@@ -223,13 +321,22 @@ export default function PaymentPage() {
 												</TableCell>
 												<TableCell className="text-right font-medium">
 													{formatCurrency(
-														payment.transaction_amount
+														payment.total_amount
 													)}
 												</TableCell>
 												<TableCell className="text-right">
-													{formatCurrency(
-														payment.total_amount
-													)}
+													{payment.cash_amount > 0
+														? formatCurrency(
+																payment.cash_amount
+														  )
+														: "-"}
+												</TableCell>
+												<TableCell className="text-right">
+													{payment.upi_amount > 0
+														? formatCurrency(
+																payment.upi_amount
+														  )
+														: "-"}
 												</TableCell>
 												<TableCell>
 													<div className="flex items-center space-x-2">
