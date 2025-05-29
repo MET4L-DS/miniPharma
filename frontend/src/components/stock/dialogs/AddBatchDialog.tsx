@@ -50,6 +50,8 @@ export function AddBatchDialog({ onAdd }: AddBatchDialogProps) {
 		quantity_in_stock: 0,
 	});
 
+	const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
 	useEffect(() => {
 		const fetchMedicines = async () => {
 			try {
@@ -186,15 +188,17 @@ export function AddBatchDialog({ onAdd }: AddBatchDialogProps) {
 
 					<div className="space-y-2">
 						<Label>Expiry Date*</Label>
-						<Popover modal={true}>
+						<Popover
+							open={isCalendarOpen}
+							onOpenChange={setIsCalendarOpen}
+						>
 							<PopoverTrigger asChild>
 								<Button
-									variant="outline"
+									variant={"outline"}
 									className={cn(
 										"w-full justify-start text-left font-normal",
 										!date && "text-muted-foreground"
 									)}
-									disabled={isLoading}
 								>
 									<CalendarIcon className="mr-2 h-4 w-4" />
 									{date
@@ -207,16 +211,30 @@ export function AddBatchDialog({ onAdd }: AddBatchDialogProps) {
 								align="start"
 								side="bottom"
 								sideOffset={4}
+								onInteractOutside={(e) => {
+									// Prevent closing when clicking inside calendar
+									const target = e.target as Element;
+									if (
+										target.closest(
+											"[data-radix-popper-content-wrapper]"
+										)
+									) {
+										e.preventDefault();
+									}
+								}}
 							>
 								<Calendar
 									mode="single"
 									selected={date}
-									onSelect={handleDateSelect}
+									onSelect={(selectedDate) => {
+										if (selectedDate) {
+											handleDateSelect(selectedDate);
+											setIsCalendarOpen(false); // Close the popover after selection
+										}
+									}}
 									initialFocus
-									className="pointer-events-auto"
-									fromYear={new Date().getFullYear()}
-									toYear={new Date().getFullYear() + 10}
-									captionLayout="dropdown-buttons"
+									disabled={(date) => date < new Date()}
+									className="rounded-md border-0 pointer-events-auto"
 								/>
 							</PopoverContent>
 						</Popover>
