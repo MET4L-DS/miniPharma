@@ -1,5 +1,5 @@
 // file: ./src/components/layout/AppSidebar.tsx
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
 	Sidebar,
 	SidebarContent,
@@ -28,8 +28,10 @@ import {
 	LogOut,
 	Settings,
 	Package,
-	CreditCard, // Add this import
+	CreditCard,
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const navigationItems = [
 	{
@@ -53,7 +55,7 @@ const navigationItems = [
 		icon: Receipt,
 	},
 	{
-		title: "Payments", // Add this new navigation item
+		title: "Payments",
 		url: "/payments",
 		icon: CreditCard,
 	},
@@ -61,14 +63,31 @@ const navigationItems = [
 
 export function AppSidebar() {
 	const location = useLocation();
+	const navigate = useNavigate();
+	const { user, logout } = useAuth();
+
+	const handleLogout = () => {
+		logout();
+		toast.success("Logged out successfully");
+		navigate("/login");
+	};
+
+	const getUserInitials = () => {
+		if (user?.shopname) {
+			return user.shopname.substring(0, 2).toUpperCase();
+		}
+		return user?.phone?.substring(0, 2) || "AU";
+	};
 
 	return (
 		<Sidebar>
 			<SidebarHeader>
-				<h2 className="text-lg font-semibold">Pharmacy System</h2>
-				<p className="text-sm text-muted-foreground">
-					Management Portal
-				</p>
+				<div className="flex flex-col space-y-2 px-2">
+					<h2 className="text-lg font-semibold">Pharmacy System</h2>
+					<p className="text-sm text-muted-foreground">
+						Management Portal
+					</p>
+				</div>
 			</SidebarHeader>
 
 			<SidebarContent>
@@ -102,15 +121,18 @@ export function AppSidebar() {
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
 								<SidebarMenuButton>
-									<Avatar className="h-8 w-8">
-										<AvatarFallback>AU</AvatarFallback>
+									<Avatar className="h-6 w-6">
+										<AvatarFallback className="text-xs">
+											{getUserInitials()}
+										</AvatarFallback>
 									</Avatar>
-									<div className="flex flex-col text-left">
+									<div className="flex flex-col items-start text-left">
 										<span className="text-sm font-medium">
-											Admin User
+											{user?.shopname || "Admin User"}
 										</span>
 										<span className="text-xs text-muted-foreground">
-											admin@pharmacy.com
+											{user?.phone ||
+												"admin@pharmacy.com"}
 										</span>
 									</div>
 									<ChevronUp className="ml-auto" />
@@ -120,13 +142,19 @@ export function AppSidebar() {
 								side="top"
 								className="w-[--radix-popper-anchor-width]"
 							>
-								<DropdownMenuItem>
-									<Settings />
-									<span>Settings</span>
+								<DropdownMenuItem
+									onClick={() => navigate("/profile")}
+								>
+									<User2 className="mr-2 h-4 w-4" />
+									Profile
 								</DropdownMenuItem>
 								<DropdownMenuItem>
-									<LogOut />
-									<span>Log out</span>
+									<Settings className="mr-2 h-4 w-4" />
+									Settings
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={handleLogout}>
+									<LogOut className="mr-2 h-4 w-4" />
+									Log out
 								</DropdownMenuItem>
 							</DropdownMenuContent>
 						</DropdownMenu>
