@@ -3,6 +3,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.db import connection
 import json
 import logging
+from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,12 @@ def add_payment(request):
             for payment in payments:
                 if not all(key in payment for key in ['payment_type', 'transaction_amount']):
                     return JsonResponse({'error': 'Each payment must have payment_type and transaction_amount'}, status=400)
+                
+                # Validate transaction_amount is a valid number
+                try:
+                    float(payment['transaction_amount'])
+                except (ValueError, TypeError):
+                    return JsonResponse({'error': 'transaction_amount must be a valid number'}, status=400)
 
             # Get the last order_id
             with connection.cursor() as cursor:
@@ -35,7 +42,7 @@ def add_payment(request):
                     cursor.execute("""
                         INSERT INTO api_payment (order_id, payment_type, transaction_amount)
                         VALUES (%s, %s, %s)
-                    """, [last_order_id, payment['payment_type'], payment['transaction_amount']])
+                    """, [last_order_id, payment['payment_type'], float(payment['transaction_amount'])])
 
             return JsonResponse({'message': 'Payments added successfully', 'order_id': last_order_id}, status=201)
 
@@ -66,6 +73,12 @@ def update_payment(request, order_id):
                 
                 for field in ['payment_type', 'transaction_amount']:
                     if field in data:
+                        if field == 'transaction_amount':
+                            # Validate transaction_amount
+                            try:
+                                float(data[field])
+                            except (ValueError, TypeError):
+                                return JsonResponse({'error': 'transaction_amount must be a valid number'}, status=400)
                         update_fields.append(f"{field} = %s")
                         values.append(data[field])
                 
@@ -112,24 +125,100 @@ def delete_payment(request, order_id):
 
 @csrf_exempt
 def get_payments(request):
-    """Get all payments"""
+    """Get all payments with improved null handling"""
     if request.method == 'GET':
         try:
             with connection.cursor() as cursor:
                 cursor.execute("""
-                    SELECT p.order_id, p.payment_type, p.transaction_amount,
-                           o.customer_name, o.total_amount, o.order_date
+                    SELECT 
+                        p.order_id, 
+                        p.payment_type, 
+                        COALESCE(p.transaction_amount, 0) as transaction_amount,
+                        COALESCE(o.customer_name, 'Unknown Customer') as customer_name, 
+                        COALESCE(o.total_amount, 0) as total_amount, 
+                        COALESCE(o.order_date, NOW()) as order_date
                     FROM api_payment p
                     LEFT JOIN api_order o ON p.order_id = o.order_id
                     ORDER BY o.order_date DESC
                 """)
                 columns = [col[0] for col in cursor.description]
-                results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+                results = []
+                
+                for row in cursor.fetchall():
+                    row_dict = dict(zip(columns, row))
+                    
+                    # Ensure numeric fields are properly handled
+                    if row_dict['transaction_amount'] is None:
+                        row_dict['transaction_amount'] = 0
+                    else:
+                        row_dict['transaction_amount'] = float(row_dict['transaction_amount'])
+                    
+                    if row_dict['total_amount'] is None:
+                        row_dict['total_amount'] = 0
+                    else:
+                        row_dict['total_amount'] = float(row_dict['total_amount'])
+                    
+                    # Ensure string fields are not None
+                    if row_dict['customer_name'] is None:
+                        row_dict['customer_name'] = 'Unknown Customer'
+                    
+                    if row_dict['payment_type'] is None:
+                        row_dict['payment_type'] = 'Unknown'
+                    
+                    # Convert datetime to string if needed
+                    if row_dict['order_date']:
+                        row_dict['order_date'] = row_dict['order_date'].strftime('%Y-%m-%d %H:%M:%S')
+                    
+                    results.append(row_dict)
                 
             return JsonResponse(results, safe=False, status=200)
             
         except Exception as e:
             logger.error(f"Error fetching payments: {str(e)}")
             return JsonResponse({'error': 'Failed to fetch payments'}, status=500)
+    
+    return JsonResponse({'error': 'Method not allowed. Use GET.'}, status=405)
+
+@csrf_exempt
+def get_payment_summary(request):
+    """Get payment summary statistics"""
+    if request.method == 'GET':
+        try:
+            with connection.cursor() as cursor:
+                # Get summary statistics
+                cursor.execute("""
+                    SELECT 
+                        COUNT(DISTINCT p.order_id) as total_orders,
+                        COALESCE(SUM(CASE WHEN o.total_amount IS NOT NULL THEN o.total_amount ELSE 0 END), 0) as total_revenue,
+                        COALESCE(SUM(CASE WHEN p.payment_type = 'cash' THEN p.transaction_amount ELSE 0 END), 0) as total_cash,
+                        COALESCE(SUM(CASE WHEN p.payment_type = 'upi' THEN p.transaction_amount ELSE 0 END), 0) as total_upi,
+                        COALESCE(SUM(p.transaction_amount), 0) as total_payments
+                    FROM api_payment p
+                    LEFT JOIN api_order o ON p.order_id = o.order_id
+                """)
+                
+                result = cursor.fetchone()
+                if result:
+                    summary = {
+                        'total_orders': int(result[0]) if result[0] else 0,
+                        'total_revenue': float(result[1]) if result[1] else 0.0,
+                        'total_cash': float(result[2]) if result[2] else 0.0,
+                        'total_upi': float(result[3]) if result[3] else 0.0,
+                        'total_payments': float(result[4]) if result[4] else 0.0,
+                    }
+                else:
+                    summary = {
+                        'total_orders': 0,
+                        'total_revenue': 0.0,
+                        'total_cash': 0.0,
+                        'total_upi': 0.0,
+                        'total_payments': 0.0,
+                    }
+                
+            return JsonResponse(summary, status=200)
+            
+        except Exception as e:
+            logger.error(f"Error fetching payment summary: {str(e)}")
+            return JsonResponse({'error': 'Failed to fetch payment summary'}, status=500)
     
     return JsonResponse({'error': 'Method not allowed. Use GET.'}, status=405)

@@ -26,7 +26,7 @@ interface PaymentData {
 	payment_type: string;
 	transaction_amount: number;
 	customer_name: string;
-	total_amount: number;
+	total_amount: number | null;
 	order_date: string;
 }
 
@@ -79,9 +79,9 @@ export default function PaymentPage() {
 
 				// Track cash and UPI amounts separately
 				if (payment.payment_type.toLowerCase() === "cash") {
-					existing.cash_amount += payment.transaction_amount;
+					existing.cash_amount += payment.transaction_amount || 0;
 				} else if (payment.payment_type.toLowerCase() === "upi") {
-					existing.upi_amount += payment.transaction_amount;
+					existing.upi_amount += payment.transaction_amount || 0;
 				}
 
 				// Update payment type to show combination
@@ -99,19 +99,22 @@ export default function PaymentPage() {
 				orderMap.set(orderId, existing);
 			} else {
 				// First payment for this order
+				const totalAmount = payment.total_amount || 0;
+				const transactionAmount = payment.transaction_amount || 0;
+
 				const mergedPayment: MergedPaymentData = {
 					order_id: payment.order_id,
 					payment_type: payment.payment_type,
-					customer_name: payment.customer_name,
-					total_amount: payment.total_amount, // This is the order total from api_order table
+					customer_name: payment.customer_name || "Unknown Customer",
+					total_amount: totalAmount,
 					order_date: payment.order_date,
 					cash_amount:
 						payment.payment_type.toLowerCase() === "cash"
-							? payment.transaction_amount
+							? transactionAmount
 							: 0,
 					upi_amount:
 						payment.payment_type.toLowerCase() === "upi"
-							? payment.transaction_amount
+							? transactionAmount
 							: 0,
 				};
 				orderMap.set(orderId, mergedPayment);
@@ -126,20 +129,30 @@ export default function PaymentPage() {
 	};
 
 	const formatCurrency = (amount: number) => {
+		// Ensure amount is a valid number
+		const validAmount =
+			isNaN(amount) || amount === null || amount === undefined
+				? 0
+				: amount;
 		return new Intl.NumberFormat("en-IN", {
 			style: "currency",
 			currency: "INR",
-		}).format(amount);
+		}).format(validAmount);
 	};
 
 	const formatDate = (dateString: string) => {
-		return new Date(dateString).toLocaleDateString("en-IN", {
-			year: "numeric",
-			month: "short",
-			day: "numeric",
-			hour: "2-digit",
-			minute: "2-digit",
-		});
+		if (!dateString) return "Invalid Date";
+		try {
+			return new Date(dateString).toLocaleDateString("en-IN", {
+				year: "numeric",
+				month: "short",
+				day: "numeric",
+				hour: "2-digit",
+				minute: "2-digit",
+			});
+		} catch (error) {
+			return "Invalid Date";
+		}
 	};
 
 	const getPaymentTypeBadge = (type: string) => {
@@ -161,17 +174,32 @@ export default function PaymentPage() {
 		);
 	};
 
-	// Calculate summary statistics - sum total_amount from unique orders
+	// Calculate summary statistics with proper null/undefined handling
 	const totalTransactions = payments.length;
+
 	const totalAmount = payments.reduce((sum, payment) => {
-		// Sum the total_amount from each unique order
-		return sum + (payment.total_amount || 0);
+		const amount = payment.total_amount;
+		// Only add if amount is a valid number
+		if (typeof amount === "number" && !isNaN(amount)) {
+			return sum + amount;
+		}
+		return sum;
 	}, 0);
+
 	const totalCashAmount = payments.reduce((sum, payment) => {
-		return sum + (payment.cash_amount || 0);
+		const amount = payment.cash_amount;
+		if (typeof amount === "number" && !isNaN(amount)) {
+			return sum + amount;
+		}
+		return sum;
 	}, 0);
+
 	const totalUpiAmount = payments.reduce((sum, payment) => {
-		return sum + (payment.upi_amount || 0);
+		const amount = payment.upi_amount;
+		if (typeof amount === "number" && !isNaN(amount)) {
+			return sum + amount;
+		}
+		return sum;
 	}, 0);
 
 	return (
@@ -308,9 +336,8 @@ export default function PaymentPage() {
 													<div className="flex items-center space-x-2">
 														<User className="h-4 w-4 text-muted-foreground" />
 														<span>
-															{
-																payment.customer_name
-															}
+															{payment.customer_name ||
+																"Unknown Customer"}
 														</span>
 													</div>
 												</TableCell>

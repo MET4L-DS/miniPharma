@@ -16,6 +16,7 @@ from .views import (
     update_payment,
     delete_payment,
     get_payments,
+    get_payment_summary,  # Add this import
     get_medicine_suggestions,
     search_medicines_with_batches,
     get_dashboard_stats,
@@ -50,6 +51,7 @@ urlpatterns = [
     
     # ==================== PAYMENT URLS ====================
     path('payments/', get_payments, name='get_payments'),  # GET all
+    path('payments/summary/', get_payment_summary, name='get_payment_summary'),  # GET summary
     path('payments/add/', add_payment, name='add_payment'),  # POST
     path('payments/<int:order_id>/', update_payment, name='update_payment'),  # PUT
     path('payments/<int:order_id>/delete/', delete_payment, name='delete_payment'),  # DELETE
