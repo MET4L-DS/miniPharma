@@ -23,9 +23,11 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Medicine } from "@/types/medicine";
 import { toast } from "sonner";
+import { ReactNode } from "react";
 
 interface AddMedicineDialogProps {
-	onAddMedicine: (medicine: Medicine) => Promise<void>;
+	children: ReactNode;
+	onAddMedicine: (newMedicine: Medicine) => Promise<void>;
 }
 
 const categories = [
