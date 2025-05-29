@@ -50,6 +50,15 @@ interface PaymentData {
 	order_date: string;
 }
 
+interface OrderItem {
+	medicine_name: string;
+	brand_name: string;
+	quantity: number;
+	unit_price: number;
+	gst: number;
+	amount: number;
+}
+
 interface MergedPaymentData {
 	order_id: number;
 	payment_type: string;
@@ -58,6 +67,7 @@ interface MergedPaymentData {
 	order_date: string;
 	cash_amount: number;
 	upi_amount: number;
+	items?: OrderItem[];
 }
 
 export default function PaymentPage() {
@@ -66,6 +76,7 @@ export default function PaymentPage() {
 	const [selectedOrder, setSelectedOrder] =
 		useState<MergedPaymentData | null>(null);
 	const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+	const [loadingOrderDetails, setLoadingOrderDetails] = useState(false);
 	const printRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
@@ -85,6 +96,35 @@ export default function PaymentPage() {
 			toast.error("Failed to fetch payments");
 		} finally {
 			setLoading(false);
+		}
+	};
+
+	const fetchOrderItems = async (orderId: number): Promise<OrderItem[]> => {
+		try {
+			// Fetch order items for the specific order
+			const orderItems = await apiService.makeRequest(
+				`/orders/${orderId}/items/`
+			);
+
+			// Transform the API response to match our OrderItem interface
+			return orderItems.map((item: any) => ({
+				medicine_name:
+					item.medicine_name ||
+					item.generic_name ||
+					"Unknown Medicine",
+				brand_name: item.brand_name || "Unknown Brand",
+				quantity: item.quantity || 0,
+				unit_price: item.unit_price || 0,
+				gst: item.gst || 0,
+				amount: (item.quantity || 0) * (item.unit_price || 0),
+			}));
+		} catch (error) {
+			console.error(
+				`Error fetching order items for order ${orderId}:`,
+				error
+			);
+			toast.error(`Failed to fetch order items for order #${orderId}`);
+			return [];
 		}
 	};
 
@@ -131,6 +171,7 @@ export default function PaymentPage() {
 						payment.payment_type.toLowerCase() === "upi"
 							? transactionAmount
 							: 0,
+					items: [], // Initialize empty, will be loaded when needed
 				};
 				orderMap.set(orderId, mergedPayment);
 			}
@@ -191,9 +232,23 @@ export default function PaymentPage() {
 		return <Badge variant={variant}>{type}</Badge>;
 	};
 
-	const handlePreviewOrder = (payment: MergedPaymentData) => {
-		setSelectedOrder(payment);
-		setIsPreviewOpen(true);
+	const handlePreviewOrder = async (payment: MergedPaymentData) => {
+		setLoadingOrderDetails(true);
+		try {
+			// Fetch order items if not already loaded
+			if (!payment.items || payment.items.length === 0) {
+				const orderItems = await fetchOrderItems(payment.order_id);
+				payment.items = orderItems;
+			}
+
+			setSelectedOrder(payment);
+			setIsPreviewOpen(true);
+		} catch (error) {
+			console.error("Error loading order details:", error);
+			toast.error("Failed to load order details");
+		} finally {
+			setLoadingOrderDetails(false);
+		}
 	};
 
 	// Calculate summary statistics
@@ -374,10 +429,13 @@ export default function PaymentPage() {
 												onClick={() =>
 													handlePreviewOrder(payment)
 												}
+												disabled={loadingOrderDetails}
 												className="flex items-center gap-2"
 											>
 												<Eye className="h-4 w-4" />
-												Preview
+												{loadingOrderDetails
+													? "Loading..."
+													: "Preview"}
 											</Button>
 										</TableCell>
 									</TableRow>
@@ -401,6 +459,7 @@ export default function PaymentPage() {
 								<Button
 									onClick={handlePrint}
 									className="flex items-center gap-2"
+									disabled={!selectedOrder}
 								>
 									<Download className="h-4 w-4" />
 									Print PDF
