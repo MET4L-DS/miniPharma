@@ -59,7 +59,6 @@ export default function StockPage() {
 				updatedBatch;
 			await apiService.updateBatch(id, updateData);
 			await fetchBatches();
-			toast.success("Batch updated successfully!");
 		} catch (err) {
 			const errorMessage =
 				err instanceof Error ? err.message : "Failed to update batch";
@@ -72,7 +71,6 @@ export default function StockPage() {
 		try {
 			await apiService.deleteBatch(batchId);
 			await fetchBatches();
-			toast.success("Batch deleted successfully!");
 		} catch (err) {
 			const errorMessage =
 				err instanceof Error ? err.message : "Failed to delete batch";

@@ -9,7 +9,7 @@ import {
 	TableCell,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import {
 	Select,
 	SelectTrigger,
@@ -17,8 +17,7 @@ import {
 	SelectContent,
 	SelectItem,
 } from "@/components/ui/select";
-import { Medicine, MedicineTableProps, SearchResult } from "@/types/medicine";
-import { MedicineActions } from "./MedicineActions";
+import { MedicineTableProps } from "@/types/medicine";
 import { EditMedicineDialog } from "../dialogs/EditMedicineDialog";
 import { DeleteConfirmationDialog } from "../dialogs/DeleteConfirmationDialog";
 import { apiService, MedicineSuggestion } from "@/services/api";
@@ -38,16 +37,6 @@ export function MedicineTable({
 	);
 	const [isSearching, setIsSearching] = useState(false);
 	const [showSearchResults, setShowSearchResults] = useState(false);
-
-	// Edit state
-	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-	const [currentMedicine, setCurrentMedicine] = useState<Medicine | null>(
-		null
-	);
-
-	// Delete state
-	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-	const [medicineToDelete, setMedicineToDelete] = useState<string>("");
 
 	// Debounced search function
 	const debouncedSearch = useCallback(
@@ -122,36 +111,6 @@ export function MedicineTable({
 		"All",
 		...new Set(medicines.map((med) => med.therapeutic_category)),
 	];
-
-	const handleEdit = (id: string) => {
-		const medicineToEdit =
-			medicines.find((med) => med.medicine_id === id) || null;
-		setCurrentMedicine(medicineToEdit);
-		setIsEditDialogOpen(true);
-	};
-
-	const handleDelete = (id: string) => {
-		setMedicineToDelete(id);
-		setIsDeleteDialogOpen(true);
-	};
-
-	const confirmDelete = async () => {
-		try {
-			await onDelete(medicineToDelete);
-			setIsDeleteDialogOpen(false);
-		} catch (error) {
-			// Error handling is done in parent component
-		}
-	};
-
-	const handleUpdateMedicine = async (updatedMedicine: Medicine) => {
-		try {
-			await onUpdate(updatedMedicine);
-		} catch (error) {
-			// Error handling is done in parent component
-			throw error;
-		}
-	};
 
 	return (
 		<div>
@@ -277,11 +236,22 @@ export function MedicineTable({
 									{medicine.therapeutic_category}
 								</TableCell>
 								<TableCell className="text-right">
-									<MedicineActions
-										medicineId={medicine.medicine_id}
-										onEdit={handleEdit}
-										onDelete={handleDelete}
-									/>
+									<div className="flex gap-2 justify-end">
+										<EditMedicineDialog
+											medicine={medicine}
+											onSave={async (updatedMedicine) => {
+												await onUpdate(updatedMedicine);
+											}}
+										/>
+										<DeleteConfirmationDialog
+											medicineId={medicine.medicine_id}
+											onConfirm={async () => {
+												await onDelete(
+													medicine.medicine_id
+												);
+											}}
+										/>
+									</div>
 								</TableCell>
 							</TableRow>
 						))
@@ -294,22 +264,6 @@ export function MedicineTable({
 					)}
 				</TableBody>
 			</Table>
-
-			{/* Edit Dialog */}
-			<EditMedicineDialog
-				isOpen={isEditDialogOpen}
-				onClose={() => setIsEditDialogOpen(false)}
-				medicine={currentMedicine}
-				onSave={handleUpdateMedicine}
-			/>
-
-			{/* Delete Confirmation Dialog */}
-			<DeleteConfirmationDialog
-				isOpen={isDeleteDialogOpen}
-				onClose={() => setIsDeleteDialogOpen(false)}
-				onConfirm={confirmDelete}
-				medicineId={medicineToDelete}
-			/>
 		</div>
 	);
 }

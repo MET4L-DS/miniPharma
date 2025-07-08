@@ -8,6 +8,7 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
+	DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,37 +18,46 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Batch } from "@/types/batch";
 import { toast } from "sonner";
 
 interface EditBatchDialogProps {
-	isOpen: boolean;
-	onClose: () => void;
-	batch: Batch | null;
+	batch: Batch;
 	onSave: (batch: Batch) => Promise<void>;
+	trigger?: React.ReactNode;
 }
 
 export function EditBatchDialog({
-	isOpen,
-	onClose,
 	batch,
 	onSave,
+	trigger,
 }: EditBatchDialogProps) {
+	const [open, setOpen] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
 	const [date, setDate] = useState<Date>();
 	const [formData, setFormData] = useState<Partial<Batch>>({});
 
+	// Reset form when dialog opens with batch data
 	useEffect(() => {
-		if (batch) {
+		if (open && batch) {
 			setFormData(batch);
-			if (batch.expiry_date) {
-				setDate(new Date(batch.expiry_date));
-			}
+			setDate(
+				batch.expiry_date ? new Date(batch.expiry_date) : undefined
+			);
 		}
-	}, [batch]);
+	}, [batch, open]);
+
+	// Clean up when dialog closes
+	useEffect(() => {
+		if (!open) {
+			setFormData({});
+			setDate(undefined);
+			setIsLoading(false);
+		}
+	}, [open]);
 
 	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const { name, value } = e.target;
@@ -81,19 +91,26 @@ export function EditBatchDialog({
 		try {
 			setIsLoading(true);
 			await onSave(formData as Batch);
-			onClose();
+			setOpen(false);
 			toast.success("Batch updated successfully!");
 		} catch (error) {
 			console.error("Failed to update batch:", error);
+			toast.error("Failed to update batch. Please try again.");
 		} finally {
 			setIsLoading(false);
 		}
 	};
 
-	if (!batch) return null;
-
 	return (
-		<Dialog open={isOpen} onOpenChange={onClose}>
+		<Dialog open={open} onOpenChange={setOpen}>
+			<DialogTrigger asChild>
+				{trigger || (
+					<Button variant="outline" size="sm">
+						<Edit className="mr-2 h-4 w-4" />
+						Edit
+					</Button>
+				)}
+			</DialogTrigger>
 			<DialogContent className="sm:max-w-[425px]">
 				<DialogHeader>
 					<DialogTitle>Edit Batch</DialogTitle>
@@ -118,9 +135,10 @@ export function EditBatchDialog({
 
 					<div className="space-y-2">
 						<Label>Expiry Date*</Label>
-						<Popover modal={true}>
+						<Popover>
 							<PopoverTrigger asChild>
 								<Button
+									type="button"
 									variant="outline"
 									className={cn(
 										"w-full justify-start text-left font-normal",
@@ -135,7 +153,7 @@ export function EditBatchDialog({
 								</Button>
 							</PopoverTrigger>
 							<PopoverContent
-								className="w-auto p-0 pointer-events-auto"
+								className="w-auto p-0"
 								align="start"
 								side="bottom"
 								sideOffset={4}
@@ -145,7 +163,6 @@ export function EditBatchDialog({
 									selected={date}
 									onSelect={handleDateSelect}
 									initialFocus
-									className="pointer-events-auto"
 									fromYear={new Date().getFullYear() - 5}
 									toYear={new Date().getFullYear() + 10}
 									captionLayout="dropdown-buttons"
@@ -205,7 +222,7 @@ export function EditBatchDialog({
 						<Button
 							type="button"
 							variant="outline"
-							onClick={onClose}
+							onClick={() => setOpen(false)}
 							disabled={isLoading}
 						>
 							Cancel

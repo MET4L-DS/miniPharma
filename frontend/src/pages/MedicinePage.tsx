@@ -135,7 +135,6 @@ export default function MedicinePage() {
 			);
 			setMedicines(updatedMedicines);
 			calculateStats(updatedMedicines);
-			toast.success("Medicine updated successfully!");
 		} catch (err) {
 			const errorMessage =
 				err instanceof Error
@@ -154,7 +153,6 @@ export default function MedicinePage() {
 			);
 			setMedicines(filteredMedicines);
 			calculateStats(filteredMedicines);
-			toast.success("Medicine deleted successfully!");
 		} catch (err) {
 			const errorMessage =
 				err instanceof Error

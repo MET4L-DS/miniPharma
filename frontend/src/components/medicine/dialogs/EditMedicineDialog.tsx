@@ -9,6 +9,7 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
+	DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,12 +23,12 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Medicine } from "@/types/medicine";
 import { toast } from "sonner";
+import { Edit } from "lucide-react";
 
 interface EditMedicineDialogProps {
-	isOpen: boolean;
-	onClose: () => void;
-	medicine: Medicine | null;
+	medicine: Medicine;
 	onSave: (updatedMedicine: Medicine) => Promise<void>;
+	trigger?: React.ReactNode;
 }
 
 const categories = [
@@ -43,11 +44,11 @@ const categories = [
 ];
 
 export function EditMedicineDialog({
-	isOpen,
-	onClose,
 	medicine,
 	onSave,
+	trigger,
 }: EditMedicineDialogProps) {
+	const [open, setOpen] = useState(false);
 	const [formData, setFormData] = useState<Medicine>({
 		medicine_id: "",
 		composition_id: 0,
@@ -62,17 +63,15 @@ export function EditMedicineDialog({
 
 	// Set form data when medicine changes
 	useEffect(() => {
-		if (medicine && isOpen) {
+		if (medicine && open) {
 			setFormData({ ...medicine });
 		}
-	}, [medicine, isOpen]);
+	}, [medicine, open]);
 
 	// Reset form when dialog closes
 	useEffect(() => {
-		if (!isOpen) {
-			setIsLoading(false);
-			// Reset form data after a small delay to prevent flash
-			setTimeout(() => {
+		if (!open) {
+			const timer = setTimeout(() => {
 				setFormData({
 					medicine_id: "",
 					composition_id: 0,
@@ -83,9 +82,11 @@ export function EditMedicineDialog({
 					requires_prescription: false,
 					therapeutic_category: "",
 				});
-			}, 150);
+				setIsLoading(false);
+			}, 100);
+			return () => clearTimeout(timer);
 		}
-	}, [isOpen]);
+	}, [open]);
 
 	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const { name, value } = e.target;
@@ -114,7 +115,6 @@ export function EditMedicineDialog({
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		e.stopPropagation();
 
 		// Basic validation
 		if (!formData.medicine_id || !formData.name || !formData.brand) {
@@ -130,47 +130,27 @@ export function EditMedicineDialog({
 		try {
 			setIsLoading(true);
 			await onSave(formData);
-			// Don't call onClose here - let the parent handle it after successful save
+			toast.success("Medicine updated successfully!");
+			setOpen(false);
 		} catch (error) {
-			// Error handling is done in parent component
 			console.error("Failed to update medicine:", error);
+			toast.error("Failed to update medicine. Please try again.");
 		} finally {
 			setIsLoading(false);
 		}
 	};
 
-	const handleClose = () => {
-		if (!isLoading) {
-			onClose();
-		}
-	};
-
-	const handleOpenChange = (open: boolean) => {
-		if (!open && !isLoading) {
-			onClose();
-		}
-	};
-
-	// Don't render the dialog content if medicine is null
-	if (!medicine) {
-		return null;
-	}
-
 	return (
-		<Dialog open={isOpen} onOpenChange={handleOpenChange}>
-			<DialogContent
-				className="sm:max-w-[500px]"
-				onPointerDownOutside={(e) => {
-					if (isLoading) {
-						e.preventDefault();
-					}
-				}}
-				onEscapeKeyDown={(e) => {
-					if (isLoading) {
-						e.preventDefault();
-					}
-				}}
-			>
+		<Dialog open={open} onOpenChange={setOpen}>
+			<DialogTrigger asChild>
+				{trigger || (
+					<Button variant="outline" size="sm">
+						<Edit className="mr-2 h-4 w-4" />
+						Edit
+					</Button>
+				)}
+			</DialogTrigger>
+			<DialogContent className="sm:max-w-[500px]">
 				<DialogHeader>
 					<DialogTitle>Edit Medicine</DialogTitle>
 					<DialogDescription>
@@ -337,7 +317,7 @@ export function EditMedicineDialog({
 						<Button
 							type="button"
 							variant="outline"
-							onClick={handleClose}
+							onClick={() => setOpen(false)}
 							disabled={isLoading}
 						>
 							Cancel
