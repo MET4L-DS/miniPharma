@@ -3,6 +3,8 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.db import connection, DatabaseError
 import logging
+import random
+from django.views.decorators.http import require_GET
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +51,95 @@ def search_medicines_with_batches(request):
             return JsonResponse({'error': 'Search failed'}, status=500)
 
     return JsonResponse({'error': 'Method not allowed. Use GET.'}, status=405)
+
+
+@csrf_exempt
+@require_GET
+def predict_salts(request):
+    """
+    Dummy prediction endpoint for salts needed by city and month.
+    Accepts query params: month (1-12 or month name) and city (string).
+    Returns a randomized list of salts (static dataset) each call.
+    """
+    month_param = request.GET.get('month', '').strip()
+    city_param = request.GET.get('city', '').strip()
+
+    # Basic validation
+    if not city_param:
+        return JsonResponse({'error': 'City parameter is required'}, status=400)
+
+    # Helper: parse month into integer 1-12 if possible
+    month_map = {
+        'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+        'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12
+    }
+
+    month = None
+    if month_param:
+        try:
+            month = int(month_param)
+            if not (1 <= month <= 12):
+                month = None
+        except ValueError:
+            m = month_param[:3].lower()
+            month = month_map.get(m)
+
+    # Static dataset: for demo purposes only
+    # Keys are lowercase city names; values map month -> list of salts
+    static_dataset = {
+        'mumbai': {
+            1: ['Paracetamol', 'Amoxicillin', 'Cetirizine', 'Rabeprazole'],
+            2: ['Azithromycin', 'Metformin', 'Pantoprazole'],
+            3: ['Amlodipine', 'Cefixime', 'Levocetirizine'],
+        },
+        'delhi': {
+            1: ['Cetirizine', 'Doxycycline', 'Pantoprazole'],
+            2: ['Paracetamol', 'Ciprofloxacin', 'Metformin'],
+            3: ['Amlodipine', 'Losartan', 'Omeprazole'],
+        },
+        'kolkata': {
+            1: ['Paracetamol', 'Ranitidine', 'Azithromycin'],
+            2: ['Levocetirizine', 'Amoxicillin', 'Metformin'],
+            3: ['Cefixime', 'Atorvastatin', 'Ondansetron'],
+        }
+    }
+
+    city_key = city_param.lower()
+    city_data = static_dataset.get(city_key, {})
+
+    # If month provided and we have data for it, use that; otherwise, flatten city data
+    salts_pool = []
+    if month and month in city_data:
+        salts_pool = list(city_data[month])
+    else:
+        # collect all salts for the city or from all cities as fallback
+        if city_data:
+            for lst in city_data.values():
+                salts_pool.extend(lst)
+        else:
+            # fallback: aggregate all salts across dataset
+            for c in static_dataset.values():
+                for lst in c.values():
+                    salts_pool.extend(lst)
+
+    # Ensure unique pool
+    salts_pool = list(dict.fromkeys(salts_pool))
+
+    # Randomize order every time and return a limited list
+    random.shuffle(salts_pool)
+    # choose first N (e.g., up to 6)
+    suggested = salts_pool[:6]
+    selected = suggested[0] if suggested else None
+
+    response = {
+        'month': month if month else None,
+        'city': city_param,
+        'predicted_salts': suggested,
+        'selected_salt': selected,
+        'note': 'This is a dummy prediction using a static dataset. Real model will replace this.'
+    }
+
+    return JsonResponse(response, status=200)
 
 @csrf_exempt
 def get_medicine_suggestions(request):

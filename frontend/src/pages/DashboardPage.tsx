@@ -26,6 +26,8 @@ import {
 	ExpiringItem,
 	LowStockItem,
 } from "@/services/api";
+import { SaltPredictionChart } from "@/components/dashboard/SaltPredictionChart";
+import { SalesChart } from "@/components/dashboard/SalesChart";
 
 export default function DashboardPage() {
 	const navigate = useNavigate();
@@ -419,68 +421,78 @@ export default function DashboardPage() {
 					</Card>
 				</div>
 
-				{/* Low Stock Items */}
-				{lowStockItems.length > 0 && (
-					<Card>
-						<CardHeader>
-							<CardTitle className="flex items-center gap-2">
-								<Package className="h-5 w-5 text-red-600" />
-								Low Stock Alert
-								<Badge
-									variant="destructive"
-									className="ml-auto"
-								>
-									{lowStockItems.length}
-								</Badge>
-							</CardTitle>
-							<CardDescription>
-								Items that need restocking
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-								{lowStockItems
-									.slice(0, 6)
-									.map((item, index) => (
-										<div
-											key={`${item.batch_number}-${index}`}
-											className="p-3 border border-red-200 rounded-lg bg-red-50"
-										>
-											<h4 className="font-medium text-sm">
-												{item.brand_name}
-											</h4>
-											<p className="text-xs text-gray-600 truncate">
-												{item.generic_name}
-											</p>
-											<div className="flex justify-between items-center mt-2">
-												<Badge
-													variant="destructive"
-													className="text-xs"
-												>
-													{item.quantity_in_stock}{" "}
-													left
-												</Badge>
-												<span className="text-xs text-gray-500">
-													Batch: {item.batch_number}
-												</span>
-											</div>
-										</div>
-									))}
-							</div>
-							{lowStockItems.length > 6 && (
-								<div className="mt-4 text-center">
-									<Button
-										variant="outline"
-										onClick={() => navigate("/stock")}
+				{/* Prediction and Analytics Section */}
+				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+					{/* Sales Chart */}
+					<SalesChart />
+
+					{/* Salt Demand Prediction Chart */}
+					<SaltPredictionChart />
+
+					{/* Low Stock Items */}
+					{lowStockItems.length > 0 && (
+						<Card>
+							<CardHeader>
+								<CardTitle className="flex items-center gap-2">
+									<Package className="h-5 w-5 text-red-600" />
+									Low Stock Alert
+									<Badge
+										variant="destructive"
+										className="ml-auto"
 									>
-										View All Low Stock Items (
-										{lowStockItems.length})
-									</Button>
+										{lowStockItems.length}
+									</Badge>
+								</CardTitle>
+								<CardDescription>
+									Items that need restocking
+								</CardDescription>
+							</CardHeader>
+							<CardContent>
+								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+									{lowStockItems
+										.slice(0, 6)
+										.map((item, index) => (
+											<div
+												key={`${item.batch_number}-${index}`}
+												className="p-3 border border-red-200 rounded-lg bg-red-50"
+											>
+												<h4 className="font-medium text-sm">
+													{item.brand_name}
+												</h4>
+												<p className="text-xs text-gray-600 truncate">
+													{item.generic_name}
+												</p>
+												<div className="flex justify-between items-center mt-2">
+													<Badge
+														variant="destructive"
+														className="text-xs"
+													>
+														{item.quantity_in_stock}{" "}
+														left
+													</Badge>
+													<span className="text-xs text-gray-500">
+														Batch:{" "}
+														{item.batch_number}
+													</span>
+												</div>
+											</div>
+										))}
 								</div>
-							)}
-						</CardContent>
-					</Card>
-				)}
+								{lowStockItems.length > 6 && (
+									<div className="mt-4 text-center">
+										<Button
+											variant="outline"
+											onClick={() => navigate("/stock")}
+										>
+											View All Low Stock Items (
+											{lowStockItems.length})
+										</Button>
+									</div>
+								)}
+							</CardContent>
+						</Card>
+					)}
+				</div>
 			</div>
 		</DashboardLayout>
 	);
