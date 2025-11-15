@@ -17,8 +17,7 @@ import {
 	SelectContent,
 	SelectItem,
 } from "@/components/ui/select";
-import { Batch, BatchTableProps } from "@/types/batch";
-import { BatchActions } from "./BatchActions";
+import { BatchTableProps } from "@/types/batch";
 import { EditBatchDialog } from "../dialogs/EditBatchDialog";
 import { DeleteBatchDialog } from "../dialogs/DeleteBatchDialog";
 import { format } from "date-fns";
@@ -26,17 +25,6 @@ import { format } from "date-fns";
 export function StockTable({ batches, onUpdate, onDelete }: BatchTableProps) {
 	const [searchTerm, setSearchTerm] = useState("");
 	const [stockFilter, setStockFilter] = useState("All");
-
-	// Edit state
-	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-	const [currentBatch, setCurrentBatch] = useState<Batch | null>(null);
-
-	// Delete state
-	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-	const [batchToDelete, setBatchToDelete] = useState<{
-		id: number;
-		number: string;
-	}>({ id: 0, number: "" });
 
 	const getStockStatus = (quantity: number) => {
 		if (quantity === 0)
@@ -79,38 +67,6 @@ export function StockTable({ batches, onUpdate, onDelete }: BatchTableProps) {
 
 		return matchesSearch && matchesStockFilter;
 	});
-
-	const handleEdit = (id: number) => {
-		const batchToEdit = batches.find((batch) => batch.id === id) || null;
-		setCurrentBatch(batchToEdit);
-		setIsEditDialogOpen(true);
-	};
-
-	const handleDelete = (id: number) => {
-		const batch = batches.find((b) => b.id === id);
-		if (batch) {
-			setBatchToDelete({ id, number: batch.batch_number });
-			setIsDeleteDialogOpen(true);
-		}
-	};
-
-	const confirmDelete = async () => {
-		try {
-			await onDelete(batchToDelete.id);
-			setIsDeleteDialogOpen(false);
-		} catch (error) {
-			console.error("Failed to delete batch:", error);
-		}
-	};
-
-	const handleUpdateBatch = async (updatedBatch: Batch) => {
-		try {
-			await onUpdate(updatedBatch);
-			setIsEditDialogOpen(false);
-		} catch (error) {
-			throw error;
-		}
-	};
 
 	return (
 		<div className="space-y-4">
@@ -242,11 +198,28 @@ export function StockTable({ batches, onUpdate, onDelete }: BatchTableProps) {
 											</Badge>
 										</TableCell>
 										<TableCell className="text-right">
-											<BatchActions
-												batchId={batch.id}
-												onEdit={handleEdit}
-												onDelete={handleDelete}
-											/>
+											<div className="flex gap-2 justify-end">
+												<EditBatchDialog
+													batch={batch}
+													onSave={async (
+														updatedBatch
+													) => {
+														await onUpdate(
+															updatedBatch
+														);
+													}}
+												/>
+												<DeleteBatchDialog
+													batchNumber={
+														batch.batch_number
+													}
+													onConfirm={async () => {
+														await onDelete(
+															batch.id
+														);
+													}}
+												/>
+											</div>
 										</TableCell>
 									</TableRow>
 								);
@@ -261,22 +234,6 @@ export function StockTable({ batches, onUpdate, onDelete }: BatchTableProps) {
 					</TableBody>
 				</Table>
 			</div>
-
-			{/* Edit Dialog */}
-			<EditBatchDialog
-				isOpen={isEditDialogOpen}
-				onClose={() => setIsEditDialogOpen(false)}
-				batch={currentBatch}
-				onSave={handleUpdateBatch}
-			/>
-
-			{/* Delete Confirmation Dialog */}
-			<DeleteBatchDialog
-				isOpen={isDeleteDialogOpen}
-				onClose={() => setIsDeleteDialogOpen(false)}
-				onConfirm={confirmDelete}
-				batchNumber={batchToDelete.number}
-			/>
 		</div>
 	);
 }

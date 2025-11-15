@@ -119,3 +119,38 @@ def get_low_stock(request):
             return JsonResponse({'error': 'Failed to fetch low stock items'}, status=500)
     
     return JsonResponse({'error': 'Method not allowed. Use GET.'}, status=405)
+
+@csrf_exempt
+def get_sales_data(request):
+    """Get daily sales revenue for the past N days"""
+    if request.method == 'GET':
+        try:
+            days = int(request.GET.get('days', 30))
+            
+            with connection.cursor() as cursor:
+                # Query to get daily revenue for the past N days
+                cursor.execute("""
+                    SELECT DATE(order_date) as date, 
+                           COALESCE(SUM(total_amount), 0) as revenue
+                    FROM api_order
+                    WHERE order_date >= DATE_SUB(CURRENT_DATE, INTERVAL %s DAY)
+                    GROUP BY DATE(order_date)
+                    ORDER BY date ASC
+                """, [days])
+                
+                columns = [col[0] for col in cursor.description]
+                results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+                
+                # Convert date objects to ISO format strings and ensure revenue is float
+                for item in results:
+                    if item['date']:
+                        item['date'] = item['date'].isoformat()
+                    item['revenue'] = float(item['revenue']) if item['revenue'] else 0.0
+                
+            return JsonResponse(results, safe=False, status=200)
+            
+        except Exception as e:
+            logger.error(f"Error fetching sales data: {str(e)}")
+            return JsonResponse({'error': 'Failed to fetch sales data'}, status=500)
+    
+    return JsonResponse({'error': 'Method not allowed. Use GET.'}, status=405)

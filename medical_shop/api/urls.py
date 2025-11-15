@@ -23,6 +23,8 @@ from .views import (
     get_dashboard_stats,
     get_expiring_soon,
     get_low_stock,
+    get_sales_data,
+    predict_salts,
 )
 
 urlpatterns = [
@@ -61,10 +63,12 @@ urlpatterns = [
     # ==================== SEARCH URLS ====================
     path('search/medicines/', search_medicines_with_batches, name='search_medicines_with_batches'),
     path('search/suggestions/', get_medicine_suggestions, name='get_medicine_suggestions'),
+    path('predict/salts/', predict_salts, name='predict_salts'),
 
     
     # ==================== DASHBOARD/ANALYTICS URLS ====================
     path('dashboard/stats/', get_dashboard_stats, name='dashboard_stats'),  # GET
     path('dashboard/expiring-soon/', get_expiring_soon, name='expiring_soon'),  # GET
     path('dashboard/low-stock/', get_low_stock, name='low_stock'),  # GET
+    path('dashboard/sales/', get_sales_data, name='sales_data'),  # GET
 ]

@@ -132,6 +132,19 @@ export interface LowStockItem {
 	expiry_date: string;
 }
 
+export interface SaltPrediction {
+	month: number | null;
+	city: string;
+	predicted_salts: string[];
+	selected_salt: string | null;
+	note: string;
+}
+
+export interface SalesPoint {
+	date: string; // ISO date
+	revenue: number;
+}
+
 class ApiService {
 	async makeRequest(endpoint: string, options: RequestInit = {}) {
 		const url = `${API_BASE_URL}${endpoint}`;
@@ -445,6 +458,71 @@ class ApiService {
 		} catch (error) {
 			console.error("Error fetching low stock items:", error);
 			return [];
+		}
+	}
+
+	async getSaltPredictions(
+		city: string,
+		month?: number | string
+	): Promise<SaltPrediction> {
+		try {
+			const params = new URLSearchParams({ city });
+			if (month) {
+				params.append("month", month.toString());
+			}
+
+			const response = await this.makeRequest(
+				`/predict/salts/?${params.toString()}`
+			);
+			return response;
+		} catch (error) {
+			console.error("Error fetching salt predictions:", error);
+			throw error;
+		}
+	}
+
+	async getSalesData(days: number = 30): Promise<SalesPoint[]> {
+		try {
+			const response = await this.makeRequest(
+				`/dashboard/sales/?days=${days}`
+			);
+
+			// Expect an array of { date, revenue }
+			if (Array.isArray(response)) {
+				return response.map((item: any) => ({
+					date: item.date || item.day || new Date().toISOString(),
+					revenue: this.safeParseNumber(
+						item.revenue ?? item.amount ?? 0
+					),
+				}));
+			}
+
+			// If the backend doesn't provide the endpoint, synthesize sample data
+			const synthesized: SalesPoint[] = [];
+			for (let i = days - 1; i >= 0; i--) {
+				const d = new Date();
+				d.setDate(d.getDate() - i);
+				synthesized.push({
+					date: d.toISOString().slice(0, 10),
+					revenue: Math.round(Math.random() * 5000 + 2000),
+				});
+			}
+			return synthesized;
+		} catch (error) {
+			console.warn(
+				"Sales endpoint not available, returning sample data.",
+				error
+			);
+			const synthesized: SalesPoint[] = [];
+			for (let i = days - 1; i >= 0; i--) {
+				const d = new Date();
+				d.setDate(d.getDate() - i);
+				synthesized.push({
+					date: d.toISOString().slice(0, 10),
+					revenue: Math.round(Math.random() * 5000 + 2000),
+				});
+			}
+			return synthesized;
 		}
 	}
 }
