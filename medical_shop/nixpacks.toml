@@ -1,11 +1,15 @@
 [phases.setup]
-nixPkgs = ["python313", "python313Packages.pip", "gcc", "pkg-config", "mysql80"]
+nixPkgs = ["python313", "python313Packages.pip", "python313Packages.virtualenv", "gcc", "pkg-config", "mysql80"]
 
 [phases.install]
-cmds = ["pip install --upgrade pip", "pip install -r requirements.txt"]
+cmds = [
+    "python -m venv /opt/venv",
+    ". /opt/venv/bin/activate && pip install --upgrade pip",
+    ". /opt/venv/bin/activate && pip install -r requirements.txt"
+]
 
 [phases.build]
-cmds = ["python manage.py collectstatic --noinput"]
+cmds = [". /opt/venv/bin/activate && python manage.py collectstatic --noinput"]
 
 [start]
-cmd = "gunicorn medical_shop.wsgi --bind 0.0.0.0:$PORT"
+cmd = ". /opt/venv/bin/activate && gunicorn medical_shop.wsgi --bind 0.0.0.0:$PORT"
