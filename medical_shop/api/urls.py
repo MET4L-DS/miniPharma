@@ -1,4 +1,6 @@
 from django.urls import path
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
 from .views import (
     ProductView,
     BatchView,
@@ -27,7 +29,26 @@ from .views import (
     predict_salts,
 )
 
+@api_view(['GET'])
+def welcome_view(request):
+    return Response({
+        'message': 'Welcome to miniPharma API',
+        'version': '1.0',
+        'status': 'running',
+        'endpoints': {
+            'products': '/api/products/',
+            'batches': '/api/batches/',
+            'users': '/api/users/',
+            'orders': '/api/orders/',
+            'payments': '/api/payments/',
+            'search': '/api/search/medicines/',
+            'dashboard': '/api/dashboard/stats/',
+        }
+    })
+
 urlpatterns = [
+    # ==================== WELCOME ====================
+    path('', welcome_view, name='api_welcome'),
     # ==================== PRODUCT URLS ====================
     path('products/', ProductView.as_view(), name='products'),  # GET all, POST new
     path('products/<str:product_id>/', ProductView.as_view(), name='product_detail'),  # GET, PUT, DELETE specific

@@ -16,8 +16,18 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path,include
+from django.http import JsonResponse
+
+def root_welcome(request):
+    return JsonResponse({
+        'message': 'miniPharma Django Backend',
+        'status': 'running',
+        'api': '/api/',
+        'admin': '/admin/',
+    })
 
 urlpatterns = [
+    path('', root_welcome, name='root'),
     path('admin/', admin.site.urls),
    
     path('api/',include('api.urls')),
