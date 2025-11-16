@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["python313", "python313Packages.pip", "python313Packages.virtualenv", "gcc", "pkg-config", "mysql80"]
+nixPkgs = ["python313", "python313Packages.pip", "python313Packages.virtualenv", "gcc", "pkg-config", "libmysqlclient", "mysql80"]
 
 [phases.install]
 cmds = [
