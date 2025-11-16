@@ -12,4 +12,4 @@ cmds = [
 cmds = ["echo 'Build phase: skipping collectstatic (will run at startup with DB access)'"]
 
 [start]
-cmd = ".\/opt\/venv\/bin\/activate && sh startup.sh"
+cmd = ". /opt/venv/bin/activate && sh startup.sh"
