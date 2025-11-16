@@ -1,1 +1,1 @@
-web: gunicorn medical_shop.wsgi --log-file -
+web: sh startup.sh
