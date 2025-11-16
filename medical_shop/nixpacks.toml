@@ -9,7 +9,7 @@ cmds = [
 ]
 
 [phases.build]
-cmds = [". /opt/venv/bin/activate && python manage.py collectstatic --noinput"]
+cmds = ["echo 'Build phase: skipping collectstatic (will run at startup with DB access)'"]
 
 [start]
-cmd = ". /opt/venv/bin/activate && gunicorn medical_shop.wsgi --bind 0.0.0.0:$PORT"
+cmd = ".\/opt\/venv\/bin\/activate && sh startup.sh"

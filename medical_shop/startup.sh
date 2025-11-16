@@ -1,6 +1,11 @@
 #!/usr/bin/env sh
 set -e
 
+# Activate virtualenv if it exists (Railway uses /opt/venv)
+if [ -d "/opt/venv" ]; then
+  . /opt/venv/bin/activate
+fi
+
 echo "[startup] Running database migrations..."
 python manage.py migrate --noinput
 
