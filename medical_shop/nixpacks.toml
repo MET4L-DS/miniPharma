@@ -2,10 +2,10 @@
 nixPkgs = ["python313", "gcc", "pkg-config", "mysql80"]
 
 [phases.install]
-cmds = ["pip install --upgrade pip", "pip install -r requirements.txt"]
+cmds = ["python3 -m pip install --upgrade pip", "python3 -m pip install -r requirements.txt"]
 
 [phases.build]
-cmds = ["python manage.py collectstatic --noinput"]
+cmds = ["python3 manage.py collectstatic --noinput"]
 
 [start]
 cmd = "gunicorn medical_shop.wsgi --bind 0.0.0.0:$PORT"
