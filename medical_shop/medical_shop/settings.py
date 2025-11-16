@@ -31,7 +31,19 @@ SECRET_KEY = config(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config("DEBUG", default=True, cast=bool)
 
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=Csv())
+# ALLOWED_HOSTS configuration
+# In production, Railway sets RAILWAY_PUBLIC_DOMAIN automatically
+allowed_hosts_str = config("ALLOWED_HOSTS", default="localhost,127.0.0.1")
+ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_str.split(',') if host.strip()]
+
+# Add Railway domain if present
+railway_domain = config("RAILWAY_PUBLIC_DOMAIN", default=None)
+if railway_domain and railway_domain not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(railway_domain)
+
+# Allow all Railway.app domains in production
+if not DEBUG:
+    ALLOWED_HOSTS.extend(['*.railway.app', '.railway.app'])
 
 
 # Application definition
@@ -158,7 +170,8 @@ CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default="", cast=Csv())
 
 # Security settings for production
 if not DEBUG:
-    SECURE_SSL_REDIRECT = True
+    # Railway handles SSL at the proxy level, so don't force redirect
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
