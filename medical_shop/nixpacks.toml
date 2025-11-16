@@ -1,11 +1,11 @@
 [phases.setup]
-nixPkgs = ["python313", "python313Packages.pip", "python313Packages.virtualenv", "gcc", "pkg-config", "mariadb-connector-c", "openssl", "zlib"]
+nixPkgs = ["python313", "python313Packages.pip", "python313Packages.virtualenv"]
 
 [phases.install]
 cmds = [
     "python -m venv /opt/venv",
     ". /opt/venv/bin/activate && pip install --upgrade pip",
-    ". /opt/venv/bin/activate && PKG_CONFIG_PATH=${mariadb-connector-c}/lib/pkgconfig pip install -r requirements.txt"
+    ". /opt/venv/bin/activate && pip install -r requirements.txt"
 ]
 
 [phases.build]
