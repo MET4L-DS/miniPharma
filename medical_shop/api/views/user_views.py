@@ -15,7 +15,7 @@ def register_user(request):
             data = json.loads(request.body)
             phone = data.get('phone')
             password = data.get('password')
-            manager = data.get('manager')
+            manager = data.get('manager')  # Optional manager phone number
             shopname = data.get('shopname')
 
             if not all([phone, password]):
@@ -23,6 +23,16 @@ def register_user(request):
 
             if len(phone) != 10 or not phone.isdigit():
                 return JsonResponse({'error': 'Phone number must be 10 digits'}, status=400)
+
+            # Validate manager if provided
+            if manager:
+                if len(manager) != 10 or not manager.isdigit():
+                    return JsonResponse({'error': 'Manager phone number must be 10 digits'}, status=400)
+                
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT 1 FROM api_register WHERE phone = %s", [manager])
+                    if not cursor.fetchone():
+                        return JsonResponse({'error': 'Manager phone number does not exist'}, status=400)
 
             hashed_password = make_password(password)
 
@@ -32,7 +42,7 @@ def register_user(request):
                     return JsonResponse({'error': 'Phone number already exists'}, status=400)
 
                 cursor.execute("""
-                    INSERT INTO api_register (phone, password, manager, shopname)
+                    INSERT INTO api_register (phone, password, manager_id, shopname)
                     VALUES (%s, %s, %s, %s)
                 """, [phone, hashed_password, manager, shopname])
 
@@ -41,8 +51,8 @@ def register_user(request):
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON format'}, status=400)
         except Exception as e:
-            logger.error(f"Registration error: {str(e)}")
-            return JsonResponse({'error': 'Registration failed'}, status=500)
+            logger.error(f"Registration error: {str(e)}", exc_info=True)
+            return JsonResponse({'error': f'Registration failed: {str(e)}'}, status=500)
 
     return JsonResponse({'error': 'Method not allowed. Use POST.'}, status=405)
 
