@@ -1,6 +1,7 @@
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.db import connection
+from django.db.models import Sum, Q, Count, F
+from api.models import Payment, Order
 import json
 import logging
 from decimal import Decimal
@@ -29,22 +30,21 @@ def add_payment(request):
                 except (ValueError, TypeError):
                     return JsonResponse({'error': 'transaction_amount must be a valid number'}, status=400)
 
-            # Get the last order_id
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT MAX(order_id) FROM api_order")
-                last_order_id = cursor.fetchone()[0]
+            # Get the last order
+            last_order = Order.objects.order_by('-order_id').first()
 
-                if not last_order_id:
-                    return JsonResponse({'error': 'No orders found'}, status=400)
+            if not last_order:
+                return JsonResponse({'error': 'No orders found'}, status=400)
 
-                # Insert payments
-                for payment in payments:
-                    cursor.execute("""
-                        INSERT INTO api_payment (order_id, payment_type, transaction_amount)
-                        VALUES (%s, %s, %s)
-                    """, [last_order_id, payment['payment_type'], float(payment['transaction_amount'])])
+            # Insert payments
+            for payment in payments:
+                Payment.objects.create(
+                    order=last_order,
+                    payment_type=payment['payment_type'],
+                    transaction_amount=float(payment['transaction_amount'])
+                )
 
-            return JsonResponse({'message': 'Payments added successfully', 'order_id': last_order_id}, status=201)
+            return JsonResponse({'message': 'Payments added successfully', 'order_id': last_order.order_id}, status=201)
 
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON format'}, status=400)
@@ -61,37 +61,29 @@ def update_payment(request, order_id):
         try:
             data = json.loads(request.body)
             
-            with connection.cursor() as cursor:
-                # Check if payment exists
-                cursor.execute("SELECT 1 FROM api_payment WHERE order_id = %s", [order_id])
-                if not cursor.fetchone():
-                    return JsonResponse({'error': 'Payment not found'}, status=404)
-                
-                # Build dynamic update query
-                update_fields = []
-                values = []
-                
-                for field in ['payment_type', 'transaction_amount']:
-                    if field in data:
-                        if field == 'transaction_amount':
-                            # Validate transaction_amount
-                            try:
-                                float(data[field])
-                            except (ValueError, TypeError):
-                                return JsonResponse({'error': 'transaction_amount must be a valid number'}, status=400)
-                        update_fields.append(f"{field} = %s")
-                        values.append(data[field])
-                
-                if not update_fields:
-                    return JsonResponse({'error': 'No fields to update'}, status=400)
-                
-                values.append(order_id)
-                cursor.execute(f"""
-                    UPDATE api_payment 
-                    SET {', '.join(update_fields)}
-                    WHERE order_id = %s
-                """, values)
-
+            try:
+                payment = Payment.objects.get(order_id=order_id)
+            except Payment.DoesNotExist:
+                return JsonResponse({'error': 'Payment not found'}, status=404)
+            
+            # Update fields if provided
+            updated = False
+            
+            if 'payment_type' in data:
+                payment.payment_type = data['payment_type']
+                updated = True
+            
+            if 'transaction_amount' in data:
+                try:
+                    payment.transaction_amount = float(data['transaction_amount'])
+                    updated = True
+                except (ValueError, TypeError):
+                    return JsonResponse({'error': 'transaction_amount must be a valid number'}, status=400)
+            
+            if not updated:
+                return JsonResponse({'error': 'No fields to update'}, status=400)
+            
+            payment.save()
             return JsonResponse({'message': 'Payment updated successfully'}, status=200)
 
         except json.JSONDecodeError:
@@ -107,15 +99,12 @@ def delete_payment(request, order_id):
     """Delete payment for an order"""
     if request.method == 'DELETE':
         try:
-            with connection.cursor() as cursor:
-                # Check if payment exists
-                cursor.execute("SELECT 1 FROM api_payment WHERE order_id = %s", [order_id])
-                if not cursor.fetchone():
-                    return JsonResponse({'error': 'Payment not found'}, status=404)
-                
-                cursor.execute("DELETE FROM api_payment WHERE order_id = %s", [order_id])
-
-            return JsonResponse({'message': 'Payment deleted successfully'}, status=200)
+            try:
+                payment = Payment.objects.get(order_id=order_id)
+                payment.delete()
+                return JsonResponse({'message': 'Payment deleted successfully'}, status=200)
+            except Payment.DoesNotExist:
+                return JsonResponse({'error': 'Payment not found'}, status=404)
 
         except Exception as e:
             logger.error(f"Error deleting payment: {str(e)}")
@@ -128,48 +117,18 @@ def get_payments(request):
     """Get all payments with improved null handling"""
     if request.method == 'GET':
         try:
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    SELECT 
-                        p.order_id, 
-                        p.payment_type, 
-                        COALESCE(p.transaction_amount, 0) as transaction_amount,
-                        COALESCE(o.customer_name, 'Unknown Customer') as customer_name, 
-                        COALESCE(o.total_amount, 0) as total_amount, 
-                        COALESCE(o.order_date, NOW()) as order_date
-                    FROM api_payment p
-                    LEFT JOIN api_order o ON p.order_id = o.order_id
-                    ORDER BY o.order_date DESC
-                """)
-                columns = [col[0] for col in cursor.description]
-                results = []
-                
-                for row in cursor.fetchall():
-                    row_dict = dict(zip(columns, row))
-                    
-                    # Ensure numeric fields are properly handled
-                    if row_dict['transaction_amount'] is None:
-                        row_dict['transaction_amount'] = 0
-                    else:
-                        row_dict['transaction_amount'] = float(row_dict['transaction_amount'])
-                    
-                    if row_dict['total_amount'] is None:
-                        row_dict['total_amount'] = 0
-                    else:
-                        row_dict['total_amount'] = float(row_dict['total_amount'])
-                    
-                    # Ensure string fields are not None
-                    if row_dict['customer_name'] is None:
-                        row_dict['customer_name'] = 'Unknown Customer'
-                    
-                    if row_dict['payment_type'] is None:
-                        row_dict['payment_type'] = 'Unknown'
-                    
-                    # Convert datetime to string if needed
-                    if row_dict['order_date']:
-                        row_dict['order_date'] = row_dict['order_date'].strftime('%Y-%m-%d %H:%M:%S')
-                    
-                    results.append(row_dict)
+            payments = Payment.objects.select_related('order').order_by('-order__order_date')
+            
+            results = []
+            for p in payments:
+                results.append({
+                    'order_id': p.order_id,
+                    'payment_type': p.payment_type or 'Unknown',
+                    'transaction_amount': float(p.transaction_amount) if p.transaction_amount else 0.0,
+                    'customer_name': p.order.customer_name or 'Unknown Customer',
+                    'total_amount': float(p.order.total_amount) if p.order.total_amount else 0.0,
+                    'order_date': p.order.order_date.strftime('%Y-%m-%d %H:%M:%S') if p.order.order_date else None
+                })
                 
             return JsonResponse(results, safe=False, status=200)
             
@@ -184,38 +143,25 @@ def get_payment_summary(request):
     """Get payment summary statistics"""
     if request.method == 'GET':
         try:
-            with connection.cursor() as cursor:
-                # Get summary statistics
-                cursor.execute("""
-                    SELECT 
-                        COUNT(DISTINCT p.order_id) as total_orders,
-                        COALESCE(SUM(CASE WHEN o.total_amount IS NOT NULL THEN o.total_amount ELSE 0 END), 0) as total_revenue,
-                        COALESCE(SUM(CASE WHEN p.payment_type = 'cash' THEN p.transaction_amount ELSE 0 END), 0) as total_cash,
-                        COALESCE(SUM(CASE WHEN p.payment_type = 'upi' THEN p.transaction_amount ELSE 0 END), 0) as total_upi,
-                        COALESCE(SUM(p.transaction_amount), 0) as total_payments
-                    FROM api_payment p
-                    LEFT JOIN api_order o ON p.order_id = o.order_id
-                """)
-                
-                result = cursor.fetchone()
-                if result:
-                    summary = {
-                        'total_orders': int(result[0]) if result[0] else 0,
-                        'total_revenue': float(result[1]) if result[1] else 0.0,
-                        'total_cash': float(result[2]) if result[2] else 0.0,
-                        'total_upi': float(result[3]) if result[3] else 0.0,
-                        'total_payments': float(result[4]) if result[4] else 0.0,
-                    }
-                else:
-                    summary = {
-                        'total_orders': 0,
-                        'total_revenue': 0.0,
-                        'total_cash': 0.0,
-                        'total_upi': 0.0,
-                        'total_payments': 0.0,
-                    }
-                
-            return JsonResponse(summary, status=200)
+            # Get summary statistics using ORM aggregation
+            summary = Payment.objects.select_related('order').aggregate(
+                total_orders=Count('order_id', distinct=True),
+                total_revenue=Sum('order__total_amount'),
+                total_cash=Sum('transaction_amount', filter=Q(payment_type='CASH')),
+                total_upi=Sum('transaction_amount', filter=Q(payment_type='UPI')),
+                total_payments=Sum('transaction_amount')
+            )
+            
+            # Convert to proper format with defaults
+            result = {
+                'total_orders': summary['total_orders'] or 0,
+                'total_revenue': float(summary['total_revenue']) if summary['total_revenue'] else 0.0,
+                'total_cash': float(summary['total_cash']) if summary['total_cash'] else 0.0,
+                'total_upi': float(summary['total_upi']) if summary['total_upi'] else 0.0,
+                'total_payments': float(summary['total_payments']) if summary['total_payments'] else 0.0,
+            }
+            
+            return JsonResponse(result, status=200)
             
         except Exception as e:
             logger.error(f"Error fetching payment summary: {str(e)}")

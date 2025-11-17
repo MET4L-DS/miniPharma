@@ -1,6 +1,9 @@
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.db import connection
+from django.db.models import Count, Sum, Q, F
+from django.utils import timezone
+from datetime import timedelta, date
+from api.models import Product, Batch, Order
 import logging
 
 logger = logging.getLogger(__name__)
@@ -10,43 +13,30 @@ def get_dashboard_stats(request):
     """Get dashboard statistics"""
     if request.method == 'GET':
         try:
-            with connection.cursor() as cursor:
-                # Get total products
-                cursor.execute("SELECT COUNT(*) FROM api_product")
-                total_products = cursor.fetchone()[0]
-                
-                # Get total batches
-                cursor.execute("SELECT COUNT(*) FROM api_batch")
-                total_batches = cursor.fetchone()[0]
-                
-                # Get total orders
-                cursor.execute("SELECT COUNT(*) FROM api_order")
-                total_orders = cursor.fetchone()[0]
-                
-                # Get low stock items (quantity < 10)
-                cursor.execute("""
-                    SELECT COUNT(*) FROM api_batch WHERE quantity_in_stock < 10
-                """)
-                low_stock_items = cursor.fetchone()[0]
-                
-                # Get expired items
-                cursor.execute("""
-                    SELECT COUNT(*) FROM api_batch WHERE expiry_date < CURRENT_DATE
-                """)
-                expired_items = cursor.fetchone()[0]
-                
-                # Get today's orders
-                cursor.execute("""
-                    SELECT COUNT(*) FROM api_order WHERE DATE(order_date) = CURRENT_DATE
-                """)
-                todays_orders = cursor.fetchone()[0]
-                
-                # Get today's revenue
-                cursor.execute("""
-                    SELECT COALESCE(SUM(total_amount), 0) FROM api_order 
-                    WHERE DATE(order_date) = CURRENT_DATE
-                """)
-                todays_revenue = cursor.fetchone()[0]
+            # Get total products
+            total_products = Product.objects.count()
+            
+            # Get total batches
+            total_batches = Batch.objects.count()
+            
+            # Get total orders
+            total_orders = Order.objects.count()
+            
+            # Get low stock items (quantity < 10)
+            low_stock_items = Batch.objects.filter(quantity_in_stock__lt=10).count()
+            
+            # Get expired items
+            today = date.today()
+            expired_items = Batch.objects.filter(expiry_date__lt=today).count()
+            
+            # Get today's orders
+            todays_orders = Order.objects.filter(order_date__date=today).count()
+            
+            # Get today's revenue
+            todays_revenue_data = Order.objects.filter(
+                order_date__date=today
+            ).aggregate(total=Sum('total_amount'))
+            todays_revenue = float(todays_revenue_data['total']) if todays_revenue_data['total'] else 0.0
 
             stats = {
                 'total_products': total_products,
@@ -55,7 +45,7 @@ def get_dashboard_stats(request):
                 'low_stock_items': low_stock_items,
                 'expired_items': expired_items,
                 'todays_orders': todays_orders,
-                'todays_revenue': float(todays_revenue) if todays_revenue else 0.0
+                'todays_revenue': todays_revenue
             }
             
             return JsonResponse(stats, status=200)
@@ -71,21 +61,23 @@ def get_expiring_soon(request):
     """Get items expiring within next 30 days"""
     if request.method == 'GET':
         try:
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    SELECT p.generic_name, p.brand_name, b.batch_number,
-                    b.expiry_date, b.quantity_in_stock
-                    FROM api_product p INNER JOIN api_batch b 
-                    ON p.product_id = b.product_id
-                    WHERE b.expiry_date BETWEEN CURRENT_DATE AND DATE_ADD(CURRENT_DATE, INTERVAL 30 DAY)
-                    AND b.quantity_in_stock > 0
-                    ORDER BY b.expiry_date ASC;
-                """)
-                
-                columns = [col[0] for col in cursor.description]
-                results = [dict(zip(columns, row)) for row in cursor.fetchall()]
-                
-                return JsonResponse(results, safe=False, status=200)
+            today = date.today()
+            thirty_days_later = today + timedelta(days=30)
+            
+            batches = Batch.objects.filter(
+                expiry_date__range=(today, thirty_days_later),
+                quantity_in_stock__gt=0
+            ).select_related('product').order_by('expiry_date')
+            
+            results = [{
+                'generic_name': b.product.generic_name,
+                'brand_name': b.product.brand_name,
+                'batch_number': b.batch_number,
+                'expiry_date': b.expiry_date,
+                'quantity_in_stock': b.quantity_in_stock
+            } for b in batches]
+            
+            return JsonResponse(results, safe=False, status=200)
         except Exception as e:
             logger.error(f"Error fetching expiring items: {str(e)}")
             return JsonResponse({'error': 'Failed to fetch expiring items'}, status=500)
@@ -99,19 +91,19 @@ def get_low_stock(request):
         try:
             threshold = int(request.GET.get('threshold', 10))
             
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    SELECT p.generic_name, p.brand_name, b.batch_number, 
-                           b.quantity_in_stock, b.expiry_date
-                    FROM api_product p
-                    INNER JOIN api_batch b ON p.product_id = b.product_id
-                    WHERE b.quantity_in_stock < %s AND b.quantity_in_stock > 0
-                    ORDER BY b.quantity_in_stock ASC
-                """, [threshold])
-                
-                columns = [col[0] for col in cursor.description]
-                results = [dict(zip(columns, row)) for row in cursor.fetchall()]
-                
+            batches = Batch.objects.filter(
+                quantity_in_stock__lt=threshold,
+                quantity_in_stock__gt=0
+            ).select_related('product').order_by('quantity_in_stock')
+            
+            results = [{
+                'generic_name': b.product.generic_name,
+                'brand_name': b.product.brand_name,
+                'batch_number': b.batch_number,
+                'quantity_in_stock': b.quantity_in_stock,
+                'expiry_date': b.expiry_date
+            } for b in batches]
+            
             return JsonResponse(results, safe=False, status=200)
             
         except Exception as e:
@@ -127,26 +119,27 @@ def get_sales_data(request):
         try:
             days = int(request.GET.get('days', 30))
             
-            with connection.cursor() as cursor:
-                # Query to get daily revenue for the past N days
-                cursor.execute("""
-                    SELECT DATE(order_date) as date, 
-                           COALESCE(SUM(total_amount), 0) as revenue
-                    FROM api_order
-                    WHERE order_date >= DATE_SUB(CURRENT_DATE, INTERVAL %s DAY)
-                    GROUP BY DATE(order_date)
-                    ORDER BY date ASC
-                """, [days])
-                
-                columns = [col[0] for col in cursor.description]
-                results = [dict(zip(columns, row)) for row in cursor.fetchall()]
-                
-                # Convert date objects to ISO format strings and ensure revenue is float
-                for item in results:
-                    if item['date']:
-                        item['date'] = item['date'].isoformat()
-                    item['revenue'] = float(item['revenue']) if item['revenue'] else 0.0
-                
+            # Calculate the date N days ago
+            start_date = date.today() - timedelta(days=days)
+            
+            # Query to get daily revenue using ORM
+            from django.db.models.functions import TruncDate
+            
+            sales_data = Order.objects.filter(
+                order_date__gte=start_date
+            ).annotate(
+                date=TruncDate('order_date')
+            ).values('date').annotate(
+                revenue=Sum('total_amount')
+            ).order_by('date')
+            
+            results = []
+            for item in sales_data:
+                results.append({
+                    'date': item['date'].isoformat() if item['date'] else None,
+                    'revenue': float(item['revenue']) if item['revenue'] else 0.0
+                })
+            
             return JsonResponse(results, safe=False, status=200)
             
         except Exception as e:

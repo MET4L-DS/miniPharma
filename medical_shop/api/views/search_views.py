@@ -1,10 +1,12 @@
 # file: ./medical_shop/api/views/search_views.py
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.db import connection, DatabaseError
+from django.views.decorators.http import require_GET
+from django.db.models import Q, Min, Sum
+from api.models import Product, Batch
 import logging
 import random
-from django.views.decorators.http import require_GET
+from datetime import date
 
 logger = logging.getLogger(__name__)
 
@@ -17,35 +19,33 @@ def search_medicines_with_batches(request):
             return JsonResponse({'error': 'Search query is required'}, status=400)
 
         try:
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    SELECT p.product_id, p.generic_name, p.brand_name, p.gst,
-                    b.id as batch_id, b.batch_number, b.expiry_date, 
-                    b.average_purchase_price, b.selling_price, b.quantity_in_stock
-                    FROM api_product p INNER JOIN api_batch b 
-                    ON p.product_id = b.product_id
-                    WHERE (LOWER(p.generic_name) LIKE %s OR LOWER(p.brand_name) LIKE %s)
-                    AND b.quantity_in_stock > 0
-                    AND b.expiry_date > CURRENT_DATE
-                    ORDER BY p.brand_name, b.expiry_date ASC
-                """, [f"%{search_query.lower()}%", f"%{search_query.lower()}%"])
-                
-                columns = [col[0] for col in cursor.description]
-                results = [
-                    {
-                        **dict(zip(columns, row)),
-                        'average_purchase_price': float(row[7]) if row[7] is not None else 0.0,
-                        'selling_price': float(row[8]) if row[8] is not None else 0.0,
-                        'quantity_in_stock': int(row[9]) if row[9] is not None else 0
-                    }
-                    for row in cursor.fetchall()
-                ]
+            today = date.today()
+            
+            # Use Q objects for complex OR queries
+            batches = Batch.objects.filter(
+                Q(product__generic_name__icontains=search_query) |
+                Q(product__brand_name__icontains=search_query),
+                quantity_in_stock__gt=0,
+                expiry_date__gt=today
+            ).select_related('product').order_by('product__brand_name', 'expiry_date')
+            
+            results = []
+            for b in batches:
+                results.append({
+                    'product_id': b.product.product_id,
+                    'generic_name': b.product.generic_name,
+                    'brand_name': b.product.brand_name,
+                    'gst': float(b.product.gst) if b.product.gst else 0.0,
+                    'batch_id': b.id,
+                    'batch_number': b.batch_number,
+                    'expiry_date': b.expiry_date,
+                    'average_purchase_price': float(b.average_purchase_price) if b.average_purchase_price else 0.0,
+                    'selling_price': float(b.selling_price),
+                    'quantity_in_stock': b.quantity_in_stock
+                })
 
             return JsonResponse(results, safe=False, status=200)
 
-        except DatabaseError as e:
-            logger.error(f"Database error in medicine search: {str(e)}")
-            return JsonResponse({'error': 'Database error occurred'}, status=500)
         except Exception as e:
             logger.error(f"Medicine search error: {str(e)}")
             return JsonResponse({'error': 'Search failed'}, status=500)
@@ -150,23 +150,22 @@ def get_medicine_suggestions(request):
             return JsonResponse([], safe=False)
 
         try:
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    SELECT DISTINCT p.product_id, p.generic_name, p.brand_name,
-                           MIN(b.selling_price) as min_price,
-                           SUM(b.quantity_in_stock) as total_stock
-                    FROM api_product p
-                    INNER JOIN api_batch b ON p.product_id = b.product_id
-                    WHERE (LOWER(p.generic_name) LIKE %s OR LOWER(p.brand_name) LIKE %s)
-                    AND b.quantity_in_stock > 0
-                    AND b.expiry_date > CURRENT_DATE
-                    GROUP BY p.product_id, p.generic_name, p.brand_name
-                    ORDER BY p.brand_name
-                    LIMIT 10
-                """, [f"%{search_query}%", f"%{search_query}%"])
-                
-                columns = [col[0] for col in cursor.description]
-                results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+            today = date.today()
+            
+            # Get products with their batch information
+            products = Product.objects.filter(
+                Q(generic_name__icontains=search_query) |
+                Q(brand_name__icontains=search_query),
+                batch__quantity_in_stock__gt=0,
+                batch__expiry_date__gt=today
+            ).annotate(
+                min_price=Min('batch__selling_price'),
+                total_stock=Sum('batch__quantity_in_stock')
+            ).values(
+                'product_id', 'generic_name', 'brand_name', 'min_price', 'total_stock'
+            ).distinct().order_by('brand_name')[:10]
+            
+            results = list(products)
 
             return JsonResponse(results, safe=False, status=200)
 

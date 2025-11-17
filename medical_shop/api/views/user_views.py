@@ -1,7 +1,8 @@
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.db import connection
 from django.contrib.auth.hashers import make_password, check_password
+from django.core.exceptions import ValidationError
+from api.models import Register
 import json
 import logging
 
@@ -29,22 +30,25 @@ def register_user(request):
                 if len(manager) != 10 or not manager.isdigit():
                     return JsonResponse({'error': 'Manager phone number must be 10 digits'}, status=400)
                 
-                with connection.cursor() as cursor:
-                    cursor.execute("SELECT 1 FROM api_register WHERE phone = %s", [manager])
-                    if not cursor.fetchone():
-                        return JsonResponse({'error': 'Manager phone number does not exist'}, status=400)
+                if not Register.objects.filter(phone=manager).exists():
+                    return JsonResponse({'error': 'Manager phone number does not exist'}, status=400)
+
+            # Check if phone already exists
+            if Register.objects.filter(phone=phone).exists():
+                return JsonResponse({'error': 'Phone number already exists'}, status=400)
 
             hashed_password = make_password(password)
+            
+            # Get manager instance if provided
+            manager_instance = Register.objects.get(phone=manager) if manager else None
 
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT 1 FROM api_register WHERE phone = %s", [phone])
-                if cursor.fetchone():
-                    return JsonResponse({'error': 'Phone number already exists'}, status=400)
-
-                cursor.execute("""
-                    INSERT INTO api_register (phone, password, manager_id, shopname)
-                    VALUES (%s, %s, %s, %s)
-                """, [phone, hashed_password, manager, shopname])
+            # Create new user
+            Register.objects.create(
+                phone=phone,
+                password=hashed_password,
+                manager=manager_instance,
+                shopname=shopname
+            )
 
             return JsonResponse({'message': 'User registered successfully'}, status=201)
 
@@ -68,14 +72,14 @@ def login_user(request):
             if not all([phone, password]):
                 return JsonResponse({'error': 'Phone and password are required'}, status=400)
 
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT password FROM api_register WHERE phone = %s", [phone])
-                row = cursor.fetchone()
-
-                if not row or not check_password(password, row[0]):
+            try:
+                user = Register.objects.get(phone=phone)
+                if not check_password(password, user.password):
                     return JsonResponse({'error': 'Invalid phone or password'}, status=401)
-
+                
                 return JsonResponse({'message': 'Login successful'}, status=200)
+            except Register.DoesNotExist:
+                return JsonResponse({'error': 'Invalid phone or password'}, status=401)
 
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON format'}, status=400)
@@ -90,14 +94,15 @@ def get_users(request):
     """Get all users"""
     if request.method == 'GET':
         try:
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    SELECT phone, manager, shopname
-                    FROM api_register
-                    ORDER BY phone
-                """)
-                columns = [col[0] for col in cursor.description]
-                results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+            users = Register.objects.all().order_by('phone').values(
+                'phone',
+                'shopname',
+                manager_phone='manager__phone'
+            )
+            results = list(users)
+            # Replace manager_phone with manager for compatibility
+            for result in results:
+                result['manager'] = result.pop('manager_phone', None)
                 
             return JsonResponse(results, safe=False, status=200)
             
@@ -114,35 +119,38 @@ def update_user(request, phone):
         try:
             data = json.loads(request.body)
             
-            with connection.cursor() as cursor:
-                # Check if user exists
-                cursor.execute("SELECT 1 FROM api_register WHERE phone = %s", [phone])
-                if not cursor.fetchone():
-                    return JsonResponse({'error': 'User not found'}, status=404)
-                
-                # Build dynamic update query
-                update_fields = []
-                values = []
-                
-                for field in ['manager', 'shopname']:
-                    if field in data:
-                        update_fields.append(f"{field} = %s")
-                        values.append(data[field])
-                
-                if 'password' in data:
-                    update_fields.append("password = %s")
-                    values.append(make_password(data['password']))
-                
-                if not update_fields:
-                    return JsonResponse({'error': 'No fields to update'}, status=400)
-                
-                values.append(phone)
-                cursor.execute(f"""
-                    UPDATE api_register 
-                    SET {', '.join(update_fields)}
-                    WHERE phone = %s
-                """, values)
-
+            try:
+                user = Register.objects.get(phone=phone)
+            except Register.DoesNotExist:
+                return JsonResponse({'error': 'User not found'}, status=404)
+            
+            # Update fields if provided
+            updated = False
+            
+            if 'manager' in data:
+                if data['manager']:
+                    try:
+                        manager_instance = Register.objects.get(phone=data['manager'])
+                        user.manager = manager_instance
+                        updated = True
+                    except Register.DoesNotExist:
+                        return JsonResponse({'error': 'Manager phone does not exist'}, status=400)
+                else:
+                    user.manager = None
+                    updated = True
+            
+            if 'shopname' in data:
+                user.shopname = data['shopname']
+                updated = True
+            
+            if 'password' in data:
+                user.password = make_password(data['password'])
+                updated = True
+            
+            if not updated:
+                return JsonResponse({'error': 'No fields to update'}, status=400)
+            
+            user.save()
             return JsonResponse({'message': 'User updated successfully'}, status=200)
 
         except json.JSONDecodeError:
@@ -158,15 +166,12 @@ def delete_user(request, phone):
     """Delete a user"""
     if request.method == 'DELETE':
         try:
-            with connection.cursor() as cursor:
-                # Check if user exists
-                cursor.execute("SELECT 1 FROM api_register WHERE phone = %s", [phone])
-                if not cursor.fetchone():
-                    return JsonResponse({'error': 'User not found'}, status=404)
-                
-                cursor.execute("DELETE FROM api_register WHERE phone = %s", [phone])
-
-            return JsonResponse({'message': 'User deleted successfully'}, status=200)
+            try:
+                user = Register.objects.get(phone=phone)
+                user.delete()
+                return JsonResponse({'message': 'User deleted successfully'}, status=200)
+            except Register.DoesNotExist:
+                return JsonResponse({'error': 'User not found'}, status=404)
 
         except Exception as e:
             logger.error(f"Error deleting user: {str(e)}")
