@@ -22,21 +22,12 @@ import {
 	DialogContent,
 	DialogHeader,
 	DialogTitle,
-	DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiService } from "@/services/api";
 import { toast } from "sonner";
-import {
-	CreditCard,
-	Calendar,
-	User,
-	DollarSign,
-	Eye,
-	FileText,
-	Download,
-} from "lucide-react";
+import { CreditCard, User, DollarSign, Eye, Download } from "lucide-react";
 import { InvoicePreview } from "@/components/invoice/InvoicePreview";
 import { useReactToPrint } from "react-to-print";
 import { useRef } from "react";

@@ -14,7 +14,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiService, SaltPrediction } from "@/services/api";
 import { RefreshCw, TrendingUp, Sparkles } from "lucide-react";
@@ -78,18 +77,6 @@ export function SaltPredictionChart() {
 		} finally {
 			setLoading(false);
 		}
-	};
-
-	const getColorForIndex = (index: number) => {
-		const colors = [
-			"bg-blue-500",
-			"bg-green-500",
-			"bg-purple-500",
-			"bg-orange-500",
-			"bg-pink-500",
-			"bg-cyan-500",
-		];
-		return colors[index % colors.length];
 	};
 
 	const chartData = prediction

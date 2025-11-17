@@ -6,13 +6,7 @@ import { AddBatchDialog } from "@/components/stock/dialogs/AddBatchDialog";
 import { Batch, CreateBatchData } from "@/types/batch";
 import { apiService } from "@/services/api";
 import { toast } from "sonner";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package, AlertTriangle, TrendingDown, Calendar } from "lucide-react";
 
 export default function StockPage() {

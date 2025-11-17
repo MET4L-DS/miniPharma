@@ -1,6 +1,6 @@
 // file: ./src/components/billing/PaymentModal.tsx
 import { useState, useEffect } from "react";
-import { Smartphone, BadgeDollarSign, Check } from "lucide-react";
+import { Check } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +15,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { PaymentInfo } from "@/types/billing";
 
 interface PaymentModalProps {

@@ -23,7 +23,6 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({
 	children,
-	title = "Dashboard",
 	breadcrumbs = [],
 }: DashboardLayoutProps) {
 	return (

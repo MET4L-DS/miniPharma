@@ -1,6 +1,5 @@
 // file: ./src/components/invoice/InvoicePreview.tsx
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
 interface OrderItem {

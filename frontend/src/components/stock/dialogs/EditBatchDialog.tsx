@@ -165,7 +165,7 @@ export function EditBatchDialog({
 									initialFocus
 									fromYear={new Date().getFullYear() - 5}
 									toYear={new Date().getFullYear() + 10}
-									captionLayout="dropdown-buttons"
+									captionLayout="dropdown"
 								/>
 							</PopoverContent>
 						</Popover>

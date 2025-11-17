@@ -100,7 +100,6 @@ export function AddItemCard({ onAddItem }: AddItemCardProps) {
 			return;
 		}
 
-		const sellingPrice = selectedMedicine.selling_price || 0;
 		const newItem = {
 			id: `${selectedMedicine.batch_id}-${Date.now()}`,
 			product_id: selectedMedicine.product_id,
