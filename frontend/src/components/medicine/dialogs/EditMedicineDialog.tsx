@@ -22,26 +22,10 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Medicine } from "@/types/medicine";
+import { EditMedicineDialogProps } from "@/types/medicine-dialog";
 import { toast } from "sonner";
 import { Edit } from "lucide-react";
-
-interface EditMedicineDialogProps {
-	medicine: Medicine;
-	onSave: (updatedMedicine: Medicine) => Promise<void>;
-	trigger?: React.ReactNode;
-}
-
-const categories = [
-	"Analgesic",
-	"Antibiotic",
-	"Antiviral",
-	"Antipyretic",
-	"Antifungal",
-	"Antidiabetic",
-	"Anticholesterol",
-	"Antacid",
-	"Other",
-];
+import { validateMedicineForm, THERAPEUTIC_CATEGORIES } from "@/utils/medicine";
 
 export function EditMedicineDialog({
 	medicine,
@@ -116,14 +100,9 @@ export function EditMedicineDialog({
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
-		// Basic validation
-		if (!formData.medicine_id || !formData.name || !formData.brand) {
-			toast.error("Please fill in all required fields.");
-			return;
-		}
-
-		if (formData.composition_id <= 0) {
-			toast.error("Composition ID must be a positive number.");
+		const validation = validateMedicineForm(formData);
+		if (!validation.isValid) {
+			toast.error(validation.message);
 			return;
 		}
 
@@ -280,7 +259,7 @@ export function EditMedicineDialog({
 									<SelectValue placeholder="Select category" />
 								</SelectTrigger>
 								<SelectContent>
-									{categories.map((category) => (
+									{THERAPEUTIC_CATEGORIES.map((category) => (
 										<SelectItem
 											key={category}
 											value={category}

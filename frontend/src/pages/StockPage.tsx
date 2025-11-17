@@ -3,11 +3,11 @@ import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StockTable } from "@/components/stock/table/StockTable";
 import { AddBatchDialog } from "@/components/stock/dialogs/AddBatchDialog";
+import { StockStats } from "@/components/stock/StockStats";
 import { Batch, CreateBatchData } from "@/types/batch";
 import { apiService } from "@/services/api";
 import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, AlertTriangle, TrendingDown, Calendar } from "lucide-react";
+import { calculateStockStats } from "@/utils/stock";
 
 export default function StockPage() {
 	const [batches, setBatches] = useState<Batch[]>([]);
@@ -73,52 +73,7 @@ export default function StockPage() {
 		}
 	};
 
-	// Calculate statistics
-	const totalBatches = batches.length;
-	const lowStockBatches = batches.filter(
-		(batch) => batch.quantity_in_stock <= 10 && batch.quantity_in_stock > 0
-	).length;
-	const outOfStockBatches = batches.filter(
-		(batch) => batch.quantity_in_stock === 0
-	).length;
-	const expiringSoonBatches = batches.filter((batch) => {
-		const expiry = new Date(batch.expiry_date);
-		const today = new Date();
-		const diffTime = expiry.getTime() - today.getTime();
-		const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-		return diffDays <= 30 && diffDays > 0;
-	}).length;
-
-	const stats = [
-		{
-			title: "Total Batches",
-			value: totalBatches.toString(),
-			description: "Total batches in inventory",
-			icon: Package,
-			color: "text-blue-600",
-		},
-		{
-			title: "Low Stock",
-			value: lowStockBatches.toString(),
-			description: "Batches with low stock",
-			icon: TrendingDown,
-			color: "text-orange-600",
-		},
-		{
-			title: "Out of Stock",
-			value: outOfStockBatches.toString(),
-			description: "Batches out of stock",
-			icon: AlertTriangle,
-			color: "text-red-600",
-		},
-		{
-			title: "Expiring Soon",
-			value: expiringSoonBatches.toString(),
-			description: "Batches expiring within 30 days",
-			icon: Calendar,
-			color: "text-yellow-600",
-		},
-	];
+	const stats = calculateStockStats(batches);
 
 	if (loading) {
 		return (
@@ -173,28 +128,7 @@ export default function StockPage() {
 				</div>
 
 				{/* Stats Grid */}
-				<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-					{stats.map((stat) => (
-						<Card key={stat.title}>
-							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-								<CardTitle className="text-sm font-medium">
-									{stat.title}
-								</CardTitle>
-								<stat.icon
-									className={`h-4 w-4 ${stat.color}`}
-								/>
-							</CardHeader>
-							<CardContent>
-								<div className="text-2xl font-bold">
-									{stat.value}
-								</div>
-								<p className="text-xs text-muted-foreground">
-									{stat.description}
-								</p>
-							</CardContent>
-						</Card>
-					))}
-				</div>
+				<StockStats stats={stats} />
 
 				<StockTable
 					batches={batches}

@@ -1,13 +1,5 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
 	Pill,
@@ -15,7 +7,6 @@ import {
 	TrendingUp,
 	Package,
 	AlertTriangle,
-	Calendar,
 	RefreshCw,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -26,8 +17,15 @@ import {
 	ExpiringItem,
 	LowStockItem,
 } from "@/services/api";
-import { SaltPredictionChart } from "@/components/dashboard/SaltPredictionChart";
-import { SalesChart } from "@/components/dashboard/SalesChart";
+import {
+	StatCard,
+	QuickActions,
+	ExpiringItems,
+	LowStockAlert,
+	DashboardAlerts,
+	SalesChart,
+	SaltPredictionChart,
+} from "@/components/dashboard";
 
 export default function DashboardPage() {
 	const navigate = useNavigate();
@@ -73,39 +71,6 @@ export default function DashboardPage() {
 	const handleRefresh = async () => {
 		setRefreshing(true);
 		await fetchDashboardData();
-	};
-
-	const formatExpiryDate = (dateString: string) => {
-		const date = new Date(dateString);
-		const today = new Date();
-		const diffTime = date.getTime() - today.getTime();
-		const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-		if (diffDays < 0) {
-			return {
-				text: "Expired",
-				variant: "destructive" as const,
-				days: diffDays,
-			};
-		} else if (diffDays <= 7) {
-			return {
-				text: `${diffDays} days`,
-				variant: "destructive" as const,
-				days: diffDays,
-			};
-		} else if (diffDays <= 15) {
-			return {
-				text: `${diffDays} days`,
-				variant: "secondary" as const,
-				days: diffDays,
-			};
-		} else {
-			return {
-				text: `${diffDays} days`,
-				variant: "outline" as const,
-				days: diffDays,
-			};
-		}
 	};
 
 	const dashboardStats = stats
@@ -214,211 +179,35 @@ export default function DashboardPage() {
 				{/* Stats Grid */}
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 					{dashboardStats.map((stat) => (
-						<Card key={stat.title}>
-							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-								<CardTitle className="text-sm font-medium">
-									{stat.title}
-								</CardTitle>
-								<stat.icon
-									className={`h-4 w-4 ${stat.color}`}
-								/>
-							</CardHeader>
-							<CardContent>
-								<div className="text-2xl font-bold">
-									{stat.value}
-								</div>
-								<p className="text-xs text-gray-600">
-									{stat.description}
-								</p>
-							</CardContent>
-						</Card>
+						<StatCard
+							key={stat.title}
+							title={stat.title}
+							value={stat.value}
+							description={stat.description}
+							icon={stat.icon}
+							color={stat.color}
+						/>
 					))}
 				</div>
 
 				{/* Alerts Section */}
-				{stats &&
-					(stats.expired_items > 0 || stats.low_stock_items > 0) && (
-						<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-							{stats.expired_items > 0 && (
-								<Alert variant="destructive">
-									<AlertTriangle className="h-4 w-4" />
-									<AlertDescription>
-										<strong>{stats.expired_items}</strong>{" "}
-										items have expired and need immediate
-										attention.
-									</AlertDescription>
-								</Alert>
-							)}
-							{stats.low_stock_items > 0 && (
-								<Alert>
-									<Package className="h-4 w-4" />
-									<AlertDescription>
-										<strong>{stats.low_stock_items}</strong>{" "}
-										items are running low on stock.
-									</AlertDescription>
-								</Alert>
-							)}
-						</div>
-					)}
+				{stats && (
+					<DashboardAlerts
+						expiredItems={stats.expired_items}
+						lowStockItems={stats.low_stock_items}
+					/>
+				)}
 
 				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 					{/* Quick Actions */}
-					<Card>
-						<CardHeader>
-							<CardTitle>Quick Actions</CardTitle>
-							<CardDescription>
-								Common tasks and shortcuts
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							{quickActions.map((action) => (
-								<div
-									key={action.title}
-									className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
-								>
-									<div className="flex items-center space-x-3">
-										<action.icon className="h-5 w-5 text-blue-600" />
-										<div>
-											<h3 className="font-medium">
-												{action.title}
-											</h3>
-											<p className="text-sm text-gray-600">
-												{action.description}
-											</p>
-										</div>
-									</div>
-									<Button onClick={action.action} size="sm">
-										Go
-									</Button>
-								</div>
-							))}
-						</CardContent>
-					</Card>
+					<QuickActions actions={quickActions} />
 
-					{/* Expiring Soon - Enhanced Implementation */}
-					<Card>
-						<CardHeader>
-							<CardTitle className="flex items-center gap-2">
-								<Calendar className="h-5 w-5 text-orange-600" />
-								Expiring Soon
-								{expiringItems.length > 0 && (
-									<Badge
-										variant="secondary"
-										className="ml-auto"
-									>
-										{expiringItems.length}
-									</Badge>
-								)}
-							</CardTitle>
-							<CardDescription>
-								Items expiring within 30 days - sorted by expiry
-								date
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							{loading ? (
-								<div className="flex items-center justify-center py-8">
-									<div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600"></div>
-									<span className="ml-2 text-sm text-gray-600">
-										Loading expiring items...
-									</span>
-								</div>
-							) : expiringItems.length > 0 ? (
-								<div className="space-y-3 max-h-80 overflow-y-auto">
-									{expiringItems.map((item, index) => {
-										const expiryInfo = formatExpiryDate(
-											item.expiry_date
-										);
-										return (
-											<div
-												key={`${item.batch_number}-${index}`}
-												className={`p-3 rounded-lg border-l-4 ${
-													expiryInfo.days < 0
-														? "border-red-500 bg-red-50"
-														: expiryInfo.days <= 7
-														? "border-orange-500 bg-orange-50"
-														: "border-yellow-500 bg-yellow-50"
-												}`}
-											>
-												<div className="flex justify-between items-start">
-													<div className="flex-1 min-w-0">
-														<h4 className="font-medium text-sm truncate">
-															{item.brand_name}
-														</h4>
-														<p className="text-xs text-gray-600 truncate">
-															{item.generic_name}
-														</p>
-														<div className="flex items-center gap-2 mt-1">
-															<span className="text-xs text-gray-500">
-																Batch:{" "}
-																{
-																	item.batch_number
-																}
-															</span>
-															<span className="text-xs text-gray-500">
-																•
-															</span>
-															<span className="text-xs text-gray-500">
-																Stock:{" "}
-																{
-																	item.quantity_in_stock
-																}
-															</span>
-														</div>
-													</div>
-													<div className="flex flex-col items-end gap-1">
-														<Badge
-															variant={
-																expiryInfo.variant
-															}
-															className="text-xs"
-														>
-															{expiryInfo.text}
-														</Badge>
-														<span className="text-xs text-gray-500">
-															{new Date(
-																item.expiry_date
-															).toLocaleDateString(
-																"en-IN"
-															)}
-														</span>
-													</div>
-												</div>
-											</div>
-										);
-									})}
-								</div>
-							) : (
-								<div className="text-center py-8">
-									<Calendar className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-									<p className="text-gray-500 text-sm">
-										No items expiring within 30 days
-									</p>
-									<p className="text-gray-400 text-xs mt-1">
-										Your inventory is well-managed!
-									</p>
-								</div>
-							)}
-
-							{expiringItems.length > 0 && (
-								<div className="mt-4 pt-3 border-t">
-									<div className="flex justify-between items-center text-xs text-gray-500">
-										<span>
-											Total: {expiringItems.length} items
-										</span>
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={() => navigate("/stock")}
-											className="text-xs"
-										>
-											View All Stock
-										</Button>
-									</div>
-								</div>
-							)}
-						</CardContent>
-					</Card>
+					{/* Expiring Soon */}
+					<ExpiringItems
+						items={expiringItems}
+						loading={loading}
+						onViewAll={() => navigate("/stock")}
+					/>
 				</div>
 
 				{/* Prediction and Analytics Section */}
@@ -430,68 +219,10 @@ export default function DashboardPage() {
 					<SaltPredictionChart />
 
 					{/* Low Stock Items */}
-					{lowStockItems.length > 0 && (
-						<Card>
-							<CardHeader>
-								<CardTitle className="flex items-center gap-2">
-									<Package className="h-5 w-5 text-red-600" />
-									Low Stock Alert
-									<Badge
-										variant="destructive"
-										className="ml-auto"
-									>
-										{lowStockItems.length}
-									</Badge>
-								</CardTitle>
-								<CardDescription>
-									Items that need restocking
-								</CardDescription>
-							</CardHeader>
-							<CardContent>
-								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-									{lowStockItems
-										.slice(0, 6)
-										.map((item, index) => (
-											<div
-												key={`${item.batch_number}-${index}`}
-												className="p-3 border border-red-200 rounded-lg bg-red-50"
-											>
-												<h4 className="font-medium text-sm">
-													{item.brand_name}
-												</h4>
-												<p className="text-xs text-gray-600 truncate">
-													{item.generic_name}
-												</p>
-												<div className="flex justify-between items-center mt-2">
-													<Badge
-														variant="destructive"
-														className="text-xs"
-													>
-														{item.quantity_in_stock}{" "}
-														left
-													</Badge>
-													<span className="text-xs text-gray-500">
-														Batch:{" "}
-														{item.batch_number}
-													</span>
-												</div>
-											</div>
-										))}
-								</div>
-								{lowStockItems.length > 6 && (
-									<div className="mt-4 text-center">
-										<Button
-											variant="outline"
-											onClick={() => navigate("/stock")}
-										>
-											View All Low Stock Items (
-											{lowStockItems.length})
-										</Button>
-									</div>
-								)}
-							</CardContent>
-						</Card>
-					)}
+					<LowStockAlert
+						items={lowStockItems}
+						onViewAll={() => navigate("/stock")}
+					/>
 				</div>
 			</div>
 		</DashboardLayout>

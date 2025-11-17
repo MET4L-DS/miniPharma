@@ -15,12 +15,7 @@ import {
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Trash2 } from "lucide-react";
-
-interface DeleteConfirmationDialogProps {
-	onConfirm: () => Promise<void>;
-	medicineId: string;
-	trigger?: React.ReactNode;
-}
+import { DeleteConfirmationDialogProps } from "@/types/medicine-dialog";
 
 export function DeleteConfirmationDialog({
 	onConfirm,

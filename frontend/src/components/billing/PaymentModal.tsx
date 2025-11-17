@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { PaymentInfo } from "@/types/billing";
+import { validateUpiId } from "@/utils/billing";
 
 interface PaymentModalProps {
 	open: boolean;
@@ -100,9 +101,12 @@ export function PaymentModal({
 	// Process payment
 	const handleProcessPayment = async () => {
 		if (paymentMethod === "upi" || paymentMethod === "split") {
-			if (upiAmount > 0 && (!upiId || !upiId.includes("@"))) {
-				toast.error("Please enter a valid UPI ID with '@' symbol");
-				return;
+			if (upiAmount > 0) {
+				const upiValidation = validateUpiId(upiId);
+				if (!upiValidation.isValid) {
+					toast.error(upiValidation.message || "Invalid UPI ID");
+					return;
+				}
 			}
 		}
 

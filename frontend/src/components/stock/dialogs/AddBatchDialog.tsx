@@ -29,12 +29,10 @@ import { CalendarIcon, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { CreateBatchData } from "@/types/batch";
+import { AddBatchDialogProps } from "@/types/stock-dialog";
 import { apiService, ApiMedicine } from "@/services/api";
 import { toast } from "sonner";
-
-interface AddBatchDialogProps {
-	onAdd: (batch: CreateBatchData) => Promise<void>;
-}
+import { validateBatchForm } from "@/utils/stock";
 
 export function AddBatchDialog({ onAdd }: AddBatchDialogProps) {
 	const [open, setOpen] = useState(false);
@@ -111,12 +109,9 @@ export function AddBatchDialog({ onAdd }: AddBatchDialogProps) {
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
-		if (
-			!formData.batch_number ||
-			!formData.product_id ||
-			!formData.expiry_date
-		) {
-			toast.error("Please fill in all required fields.");
+		const validation = validateBatchForm(formData);
+		if (!validation.isValid) {
+			toast.error(validation.message);
 			return;
 		}
 

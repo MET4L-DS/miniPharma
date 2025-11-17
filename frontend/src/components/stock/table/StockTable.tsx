@@ -7,46 +7,23 @@ import {
 	TableHead,
 	TableCell,
 } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
-import {
-	Select,
-	SelectTrigger,
-	SelectValue,
-	SelectContent,
-	SelectItem,
-} from "@/components/ui/select";
 import { BatchTableProps } from "@/types/batch";
 import { EditBatchDialog } from "../dialogs/EditBatchDialog";
 import { DeleteBatchDialog } from "../dialogs/DeleteBatchDialog";
+import { StockFilters } from "./StockFilters";
 import { format } from "date-fns";
+import {
+	getStockStatus,
+	isExpiringSoon,
+	isExpired,
+	formatCurrency,
+} from "@/utils/stock";
 
 export function StockTable({ batches, onUpdate, onDelete }: BatchTableProps) {
 	const [searchTerm, setSearchTerm] = useState("");
 	const [stockFilter, setStockFilter] = useState("All");
-
-	const getStockStatus = (quantity: number) => {
-		if (quantity === 0)
-			return { label: "Out of Stock", variant: "destructive" as const };
-		if (quantity <= 10)
-			return { label: "Low Stock", variant: "secondary" as const };
-		return { label: "In Stock", variant: "default" as const };
-	};
-
-	const isExpiringSoon = (expiryDate: string) => {
-		const expiry = new Date(expiryDate);
-		const today = new Date();
-		const diffTime = expiry.getTime() - today.getTime();
-		const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-		return diffDays <= 30 && diffDays > 0;
-	};
-
-	const isExpired = (expiryDate: string) => {
-		const expiry = new Date(expiryDate);
-		const today = new Date();
-		return expiry < today;
-	};
 
 	const filteredBatches = batches.filter((batch) => {
 		const matchesSearch =
@@ -70,32 +47,13 @@ export function StockTable({ batches, onUpdate, onDelete }: BatchTableProps) {
 
 	return (
 		<div className="space-y-4">
-			{/* Filters */}
-			<div className="flex flex-col sm:flex-row gap-4">
-				<div className="flex-1">
-					<Input
-						placeholder="Search by batch number, medicine name, or product ID..."
-						value={searchTerm}
-						onChange={(e) => setSearchTerm(e.target.value)}
-						className="max-w-sm"
-					/>
-				</div>
-				<Select value={stockFilter} onValueChange={setStockFilter}>
-					<SelectTrigger className="w-[180px]">
-						<SelectValue placeholder="Filter by stock" />
-					</SelectTrigger>
-					<SelectContent>
-						<SelectItem value="All">All Stock</SelectItem>
-						<SelectItem value="In Stock">In Stock</SelectItem>
-						<SelectItem value="Low Stock">Low Stock</SelectItem>
-						<SelectItem value="Out of Stock">
-							Out of Stock
-						</SelectItem>
-					</SelectContent>
-				</Select>
-			</div>
+			<StockFilters
+				searchTerm={searchTerm}
+				onSearchChange={setSearchTerm}
+				stockFilter={stockFilter}
+				onStockFilterChange={setStockFilter}
+			/>
 
-			{/* Table */}
 			<div className="rounded-md border">
 				<Table>
 					<TableHeader>
@@ -179,13 +137,14 @@ export function StockTable({ batches, onUpdate, onDelete }: BatchTableProps) {
 											</div>
 										</TableCell>
 										<TableCell>
-											₹
-											{batch.average_purchase_price.toFixed(
-												2
+											{formatCurrency(
+												batch.average_purchase_price
 											)}
 										</TableCell>
 										<TableCell>
-											₹{batch.selling_price.toFixed(2)}
+											{formatCurrency(
+												batch.selling_price
+											)}
 										</TableCell>
 										<TableCell>
 											{batch.quantity_in_stock}

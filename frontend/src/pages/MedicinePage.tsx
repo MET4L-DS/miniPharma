@@ -1,8 +1,13 @@
 // file: ./src/pages/MedicinePage.tsx
 
 import { useState, useEffect } from "react";
-import { MedicineTable, AddMedicineDialog } from "@/components/medicine";
-import { Medicine } from "@/types/medicine";
+import {
+	MedicineTable,
+	AddMedicineDialog,
+	MedicineStats,
+	CategoryDistribution,
+} from "@/components/medicine";
+import { Medicine, MedicineStats as MedicineStatsType } from "@/types/medicine";
 import { apiService } from "@/services/api";
 import { transformApiMedicineToMedicine } from "@/utils/medicine";
 import { toast } from "sonner";
@@ -17,21 +22,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-	Pill,
-	Package,
-	AlertTriangle,
-	RefreshCw,
-	TrendingUp,
-	Plus,
-} from "lucide-react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 
 export default function MedicinePage() {
 	const [medicines, setMedicines] = useState<Medicine[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [refreshing, setRefreshing] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [stats, setStats] = useState({
+	const [stats, setStats] = useState<MedicineStatsType>({
 		total_medicines: 0,
 		categories: 0,
 		prescription_required: 0,
@@ -68,7 +66,7 @@ export default function MedicinePage() {
 		}
 	};
 
-	const calculateStats = (medicineList: Medicine[]) => {
+	const calculateStats = (medicineList: Medicine[]): void => {
 		const categories = new Set(
 			medicineList.map((m) => m.therapeutic_category)
 		).size;
@@ -162,42 +160,6 @@ export default function MedicinePage() {
 		}
 	};
 
-	const medicineStats = [
-		{
-			title: "Total Medicines",
-			value: stats.total_medicines.toLocaleString(),
-			description: "Active medicines in inventory",
-			icon: Pill,
-			color: "text-blue-600",
-		},
-		{
-			title: "Categories",
-			value: stats.categories.toString(),
-			description: "Therapeutic categories",
-			icon: Package,
-			color: "text-green-600",
-		},
-		{
-			title: "Prescription Required",
-			value: stats.prescription_required.toString(),
-			description: "Medicines requiring prescription",
-			icon: AlertTriangle,
-			color: "text-orange-600",
-		},
-		{
-			title: "OTC Medicines",
-			value: stats.otc_medicines.toString(),
-			description: "Over-the-counter medicines",
-			icon: TrendingUp,
-			color: "text-purple-600",
-		},
-	];
-
-	const categories = [
-		"All",
-		...new Set(medicines.map((m) => m.therapeutic_category)),
-	];
-
 	if (loading && medicines.length === 0) {
 		return (
 			<DashboardLayout>
@@ -238,12 +200,7 @@ export default function MedicinePage() {
 							/>
 							{refreshing ? "Refreshing..." : "Refresh"}
 						</Button>
-						<AddMedicineDialog onAddMedicine={handleAddMedicine}>
-							<Button size="sm">
-								<Plus className="h-4 w-4 mr-2" />
-								Add Medicine
-							</Button>
-						</AddMedicineDialog>
+						<AddMedicineDialog onAddMedicine={handleAddMedicine} />
 					</div>
 				</div>
 
@@ -256,28 +213,7 @@ export default function MedicinePage() {
 				)}
 
 				{/* Stats Grid */}
-				<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-					{medicineStats.map((stat) => (
-						<Card key={stat.title}>
-							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-								<CardTitle className="text-sm font-medium">
-									{stat.title}
-								</CardTitle>
-								<stat.icon
-									className={`h-4 w-4 ${stat.color}`}
-								/>
-							</CardHeader>
-							<CardContent>
-								<div className="text-2xl font-bold">
-									{stat.value}
-								</div>
-								<p className="text-xs text-muted-foreground">
-									{stat.description}
-								</p>
-							</CardContent>
-						</Card>
-					))}
-				</div>
+				<MedicineStats stats={stats} />
 
 				{/* Medicine Table */}
 				<Card>
@@ -309,54 +245,7 @@ export default function MedicinePage() {
 				</Card>
 
 				{/* Medicine Categories Overview */}
-				{stats.categories > 0 && (
-					<Card>
-						<CardHeader>
-							<CardTitle className="flex items-center gap-2">
-								<Package className="h-5 w-5" />
-								Category Distribution
-							</CardTitle>
-							<CardDescription>
-								Overview of medicines by therapeutic category
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<div className="grid gap-2">
-								{categories
-									.filter((cat) => cat !== "All")
-									.map((category) => {
-										const count = medicines.filter(
-											(m) =>
-												m.therapeutic_category ===
-												category
-										).length;
-										const percentage = (
-											(count / medicines.length) *
-											100
-										).toFixed(1);
-										return (
-											<div
-												key={category}
-												className="flex justify-between items-center p-2 rounded-lg border"
-											>
-												<span className="font-medium">
-													{category}
-												</span>
-												<div className="flex items-center gap-2">
-													<Badge variant="outline">
-														{count} medicines
-													</Badge>
-													<span className="text-sm text-muted-foreground">
-														{percentage}%
-													</span>
-												</div>
-											</div>
-										);
-									})}
-							</div>
-						</CardContent>
-					</Card>
-				)}
+				<CategoryDistribution medicines={medicines} />
 			</div>
 		</DashboardLayout>
 	);

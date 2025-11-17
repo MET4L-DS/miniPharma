@@ -1,29 +1,10 @@
 // file: ./src/components/invoice/InvoicePreview.tsx
 
 import { Separator } from "@/components/ui/separator";
-
-interface OrderItem {
-	medicine_name: string;
-	brand_name: string;
-	quantity: number;
-	unit_price: number;
-	gst: number;
-	amount: number;
-}
-
-interface OrderData {
-	order_id: number;
-	customer_name: string;
-	total_amount: number;
-	order_date: string;
-	payment_type: string;
-	cash_amount: number;
-	upi_amount: number;
-	items?: OrderItem[];
-}
+import { InvoiceOrderData } from "@/types/invoice";
 
 interface InvoicePreviewProps {
-	orderData: OrderData;
+	orderData: InvoiceOrderData;
 }
 
 export function InvoicePreview({ orderData }: InvoicePreviewProps) {

@@ -22,13 +22,9 @@ import { CalendarIcon, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Batch } from "@/types/batch";
+import { EditBatchDialogProps } from "@/types/stock-dialog";
 import { toast } from "sonner";
-
-interface EditBatchDialogProps {
-	batch: Batch;
-	onSave: (batch: Batch) => Promise<void>;
-	trigger?: React.ReactNode;
-}
+import { validateBatchForm } from "@/utils/stock";
 
 export function EditBatchDialog({
 	batch,
@@ -83,8 +79,12 @@ export function EditBatchDialog({
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
-		if (!formData.batch_number || !formData.expiry_date) {
-			toast.error("Please fill in all required fields.");
+		const validation = validateBatchForm({
+			batch_number: formData.batch_number || "",
+			expiry_date: formData.expiry_date || "",
+		});
+		if (!validation.isValid) {
+			toast.error(validation.message);
 			return;
 		}
 

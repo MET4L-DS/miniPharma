@@ -32,8 +32,9 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { NavigationItem } from "@/types/layout";
 
-const navigationItems = [
+const navigationItems: NavigationItem[] = [
 	{
 		title: "Dashboard",
 		url: "/dashboard",

@@ -14,12 +14,7 @@ import {
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Trash2 } from "lucide-react";
-
-interface DeleteBatchDialogProps {
-	onConfirm: () => Promise<void>;
-	batchNumber: string;
-	trigger?: React.ReactNode;
-}
+import { DeleteBatchDialogProps } from "@/types/stock-dialog";
 
 export function DeleteBatchDialog({
 	onConfirm,

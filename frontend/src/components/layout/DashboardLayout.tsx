@@ -1,5 +1,4 @@
 // file: ./src/components/layout/DashboardLayout.tsx
-import { ReactNode } from "react";
 import {
 	SidebarProvider,
 	SidebarInset,
@@ -14,12 +13,7 @@ import {
 	BreadcrumbPage,
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-
-interface DashboardLayoutProps {
-	children: ReactNode;
-	title?: string;
-	breadcrumbs?: { label: string; href?: string }[];
-}
+import { DashboardLayoutProps } from "@/types/layout";
 
 export function DashboardLayout({
 	children,

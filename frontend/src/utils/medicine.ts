@@ -45,3 +45,40 @@ export function debounce<T extends (...args: any[]) => void>(
 		timeoutId = setTimeout(() => func(...args), delay);
 	};
 }
+
+export function validateMedicineForm(formData: {
+	medicine_id: string;
+	name: string;
+	brand: string;
+	composition_id: number;
+}): { isValid: boolean; message?: string } {
+	if (!formData.medicine_id || !formData.name || !formData.brand) {
+		return {
+			isValid: false,
+			message: "Please fill in all required fields.",
+		};
+	}
+
+	if (formData.composition_id <= 0) {
+		return {
+			isValid: false,
+			message: "Composition ID must be a positive number.",
+		};
+	}
+
+	return { isValid: true };
+}
+
+export const THERAPEUTIC_CATEGORIES = [
+	"Analgesic",
+	"Antibiotic",
+	"Antiviral",
+	"Antipyretic",
+	"Antifungal",
+	"Antidiabetic",
+	"Anticholesterol",
+	"Antacid",
+	"Other",
+] as const;
+
+export type TherapeuticCategory = (typeof THERAPEUTIC_CATEGORIES)[number];

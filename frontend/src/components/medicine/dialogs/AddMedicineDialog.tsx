@@ -22,25 +22,9 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Medicine } from "@/types/medicine";
+import { AddMedicineDialogProps } from "@/types/medicine-dialog";
 import { toast } from "sonner";
-import { ReactNode } from "react";
-
-interface AddMedicineDialogProps {
-	children: ReactNode;
-	onAddMedicine: (newMedicine: Medicine) => Promise<void>;
-}
-
-const categories = [
-	"Analgesic",
-	"Antibiotic",
-	"Antiviral",
-	"Antipyretic",
-	"Antifungal",
-	"Antidiabetic",
-	"Anticholesterol",
-	"Antacid",
-	"Other",
-];
+import { validateMedicineForm, THERAPEUTIC_CATEGORIES } from "@/utils/medicine";
 
 export function AddMedicineDialog({ onAddMedicine }: AddMedicineDialogProps) {
 	const [open, setOpen] = useState(false);
@@ -97,14 +81,9 @@ export function AddMedicineDialog({ onAddMedicine }: AddMedicineDialogProps) {
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
-		// Basic validation
-		if (!formData.medicine_id || !formData.name || !formData.brand) {
-			toast.error("Please fill in all required fields.");
-			return;
-		}
-
-		if (formData.composition_id <= 0) {
-			toast.error("Composition ID must be a positive number.");
+		const validation = validateMedicineForm(formData);
+		if (!validation.isValid) {
+			toast.error(validation.message);
 			return;
 		}
 
@@ -265,7 +244,7 @@ export function AddMedicineDialog({ onAddMedicine }: AddMedicineDialogProps) {
 									<SelectValue placeholder="Select category" />
 								</SelectTrigger>
 								<SelectContent>
-									{categories.map((category) => (
+									{THERAPEUTIC_CATEGORIES.map((category) => (
 										<SelectItem
 											key={category}
 											value={category}

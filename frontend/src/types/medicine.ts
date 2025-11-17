@@ -17,13 +17,32 @@ export interface MedicineTableProps {
 	onDelete: (id: string) => void;
 }
 
-export interface SearchResult {
+// Note: SearchResult is defined in api.ts to avoid duplication
+
+export interface MedicineStats {
+	total_medicines: number;
+	categories: number;
+	prescription_required: number;
+	otc_medicines: number;
+}
+
+export interface CreateMedicineData {
 	product_id: string;
+	composition_id: number;
 	generic_name: string;
 	brand_name: string;
-	batch_number: string;
-	expiry_date: string;
-	average_purchase_price: number;
-	selling_price: number;
-	quantity_in_stock: number;
+	hsn: string;
+	gst: number;
+	prescription_required: boolean;
+	therapeutic_category: string;
+}
+
+export interface UpdateMedicineData extends Partial<CreateMedicineData> {
+	composition_id?: number;
+	generic_name?: string;
+	brand_name?: string;
+	hsn?: string;
+	gst?: number;
+	prescription_required?: boolean;
+	therapeutic_category?: string;
 }

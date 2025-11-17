@@ -13,11 +13,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Package, Calendar, AlertTriangle } from "lucide-react";
 import { apiService, MedicineBatchResult } from "@/services/api";
+import { BillItem } from "@/types/billing";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { validateQuantity, isExpiringSoon } from "@/utils/billing";
 
 interface AddItemCardProps {
-	onAddItem: (item: any) => void;
+	onAddItem: (item: BillItem) => void;
 }
 
 export function AddItemCard({ onAddItem }: AddItemCardProps) {
@@ -88,26 +90,23 @@ export function AddItemCard({ onAddItem }: AddItemCardProps) {
 			return;
 		}
 
-		if (quantity <= 0) {
-			toast.error("Please enter a valid quantity");
+		const quantityValidation = validateQuantity(
+			quantity,
+			selectedMedicine.quantity_in_stock || 0
+		);
+		if (!quantityValidation.isValid) {
+			toast.error(quantityValidation.message || "Invalid quantity");
 			return;
 		}
 
-		if (quantity > (selectedMedicine.quantity_in_stock || 0)) {
-			toast.error(
-				`Only ${selectedMedicine.quantity_in_stock} units available in stock`
-			);
-			return;
-		}
-
-		const newItem = {
+		const newItem: BillItem = {
 			id: `${selectedMedicine.batch_id}-${Date.now()}`,
 			product_id: selectedMedicine.product_id,
 			batch_id: selectedMedicine.batch_id,
 			batch_number: selectedMedicine.batch_number,
 			medicineName: selectedMedicine.generic_name,
 			brandName: selectedMedicine.brand_name,
-			quantity: quantity,
+			quantity,
 			unitPrice: Number(selectedMedicine.selling_price || 0),
 			amount: Number(selectedMedicine.selling_price || 0) * quantity,
 			availableStock: Number(selectedMedicine.quantity_in_stock || 0),
@@ -124,14 +123,6 @@ export function AddItemCard({ onAddItem }: AddItemCardProps) {
 		setSearchResults([]);
 
 		toast.success("Item added to bill");
-	};
-
-	const isExpiringSoon = (expiryDate: string) => {
-		const expiry = new Date(expiryDate);
-		const today = new Date();
-		const diffTime = expiry.getTime() - today.getTime();
-		const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-		return diffDays <= 30 && diffDays > 0;
 	};
 
 	return (
