@@ -21,6 +21,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { apiService } from "@/services/api";
 
 const RegistrationPage = () => {
 	const [phoneNumber, setPhoneNumber] = useState("");
@@ -55,32 +56,20 @@ const RegistrationPage = () => {
 		}
 
 		try {
-			const response = await fetch("/api/register/", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					phone: phoneNumber,
-					password: password,
-					shopname: shopName,
-					manager: manager || null,
-				}),
+			await apiService.register({
+				phone: phoneNumber,
+				password: password,
+				shopname: shopName,
+				manager: manager || undefined,
 			});
 
-			const data = await response.json();
-
-			if (response.ok) {
-				toast.success(
-					"Registration successful! Please login to continue."
-				);
-				navigate("/login");
-			} else {
-				toast.error(data.error || "Registration failed");
-			}
+			toast.success("Registration successful! Please login to continue.");
+			navigate("/login");
 		} catch (error) {
 			console.error("Registration error:", error);
-			toast.error("Network error. Please try again.");
+			const errorMessage =
+				error instanceof Error ? error.message : "Registration failed";
+			toast.error(errorMessage);
 		} finally {
 			setIsLoading(false);
 		}

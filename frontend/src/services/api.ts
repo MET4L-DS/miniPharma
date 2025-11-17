@@ -1,6 +1,10 @@
 // file: ./src/services/api.ts
 
-const API_BASE_URL = "http://localhost:8000/api";
+// Read API base URL from Vite env (must be prefixed with `VITE_`).
+// Fallback to localhost when not provided (useful for local dev).
+const API_BASE_URL =
+	(import.meta.env as Record<string, string>).VITE_API_BASE_URL ||
+	"http://localhost:8000/api";
 
 export interface ApiMedicine {
 	product_id: string;
@@ -145,6 +149,28 @@ export interface SalesPoint {
 	revenue: number;
 }
 
+export interface LoginRequest {
+	phone: string;
+	password: string;
+}
+
+export interface LoginResponse {
+	message: string;
+	shopname?: string;
+	manager?: string;
+}
+
+export interface RegisterRequest {
+	phone: string;
+	password: string;
+	shopname: string;
+	manager?: string;
+}
+
+export interface RegisterResponse {
+	message: string;
+}
+
 class ApiService {
 	async makeRequest(endpoint: string, options: RequestInit = {}) {
 		const url = `${API_BASE_URL}${endpoint}`;
@@ -168,6 +194,21 @@ class ApiService {
 		}
 
 		return response.json();
+	}
+
+	// Auth operations
+	async login(credentials: LoginRequest): Promise<LoginResponse> {
+		return this.makeRequest("/login/", {
+			method: "POST",
+			body: JSON.stringify(credentials),
+		});
+	}
+
+	async register(userData: RegisterRequest): Promise<RegisterResponse> {
+		return this.makeRequest("/register/", {
+			method: "POST",
+			body: JSON.stringify(userData),
+		});
 	}
 
 	// Medicine/Product operations

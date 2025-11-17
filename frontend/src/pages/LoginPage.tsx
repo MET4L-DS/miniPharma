@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiService } from "@/services/api";
 
 const LoginPage = () => {
 	const [phoneNumber, setPhoneNumber] = useState("");
@@ -44,40 +45,30 @@ const LoginPage = () => {
 		}
 
 		try {
-			const response = await fetch("/api/login/", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					phone: phoneNumber,
-					password: password,
-				}),
+			const data = await apiService.login({
+				phone: phoneNumber,
+				password: password,
 			});
 
-			const data = await response.json();
+			toast.success("Login successful!");
 
-			if (response.ok) {
-				toast.success("Login successful!");
+			// Create user object with available data
+			const userData = {
+				phone: phoneNumber,
+				shopname: data.shopname || "",
+				manager: data.manager || "",
+			};
 
-				// Create user object with available data
-				const userData = {
-					phone: phoneNumber,
-					shopname: data.shopname || "",
-					manager: data.manager || "",
-				};
+			// Update authentication state
+			login(userData);
 
-				// Update authentication state
-				login(userData);
-
-				// Navigate to intended destination or dashboard
-				navigate(from, { replace: true });
-			} else {
-				toast.error(data.error || "Login failed");
-			}
+			// Navigate to intended destination or dashboard
+			navigate(from, { replace: true });
 		} catch (error) {
 			console.error("Login error:", error);
-			toast.error("Network error. Please try again.");
+			const errorMessage =
+				error instanceof Error ? error.message : "Login failed";
+			toast.error(errorMessage);
 		} finally {
 			setIsLoading(false);
 		}
