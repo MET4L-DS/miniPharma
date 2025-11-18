@@ -11,6 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 @method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(jwt_required, name='get')
 @method_decorator(jwt_required, name='post')
 @method_decorator(jwt_required, name='put')
 @method_decorator(jwt_required, name='delete')
@@ -18,11 +19,21 @@ class ProductView(APIView):
     """Handle Product CRUD operations"""
     
     def get(self, request, product_id=None):
-        """Get all products or a specific product"""
+        """Get all products or a specific product for the authenticated shop"""
         try:
+            # Get shop from authenticated user (for protected endpoints)
+            shop = getattr(request, 'register_user', None)
+            
             if product_id:
                 try:
-                    product = Product.objects.get(product_id=product_id)
+                    # Filter by shop if authenticated, otherwise show all (public read)
+                    query = Product.objects.filter(product_id=product_id)
+                    if shop:
+                        query = query.filter(shop=shop)
+                    product = query.first()
+                    if not product:
+                        return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
+                    
                     product_data = {
                         'product_id': product.product_id,
                         'brand_name': product.brand_name,
@@ -34,10 +45,15 @@ class ProductView(APIView):
                         'therapeutic_category': product.therapeutic_category
                     }
                     return Response(product_data, status=status.HTTP_200_OK)
-                except Product.DoesNotExist:
-                    return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
+                except Exception as e:
+                    return Response({'error': str(e)}, status=status.HTTP_404_NOT_FOUND)
             else:
-                products = Product.objects.all().order_by('product_id')
+                # Filter by shop if authenticated
+                products = Product.objects.all()
+                if shop:
+                    products = products.filter(shop=shop)
+                products = products.order_by('product_id')
+                
                 results = [{
                     'product_id': p.product_id,
                     'brand_name': p.brand_name,
@@ -55,8 +71,9 @@ class ProductView(APIView):
             return Response({'error': 'An unexpected error occurred'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def post(self, request):
-        """Create a new product"""
+        """Create a new product for the authenticated shop"""
         data = request.data
+        shop = request.register_user
         
         required_fields = ['product_id', 'composition_id', 'generic_name', 'brand_name']
         for field in required_fields:
@@ -64,13 +81,14 @@ class ProductView(APIView):
                 return Response({'error': f'{field} is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # Check if product already exists
-            if Product.objects.filter(product_id=data['product_id']).exists():
-                return Response({'error': 'Product with this ID already exists'}, status=status.HTTP_400_BAD_REQUEST)
+            # Check if product already exists for this shop
+            if Product.objects.filter(product_id=data['product_id'], shop=shop).exists():
+                return Response({'error': 'Product with this ID already exists in your shop'}, status=status.HTTP_400_BAD_REQUEST)
             
             # Create new product
             Product.objects.create(
                 product_id=data['product_id'],
+                shop=shop,
                 composition_id=data['composition_id'],
                 generic_name=data['generic_name'],
                 brand_name=data['brand_name'],
@@ -87,14 +105,15 @@ class ProductView(APIView):
             return Response({'error': 'Failed to create product'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def put(self, request, product_id):
-        """Update an existing product"""
+        """Update an existing product for the authenticated shop"""
         data = request.data
+        shop = request.register_user
         
         try:
             try:
-                product = Product.objects.get(product_id=product_id)
+                product = Product.objects.get(product_id=product_id, shop=shop)
             except Product.DoesNotExist:
-                return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
+                return Response({'error': 'Product not found in your shop'}, status=status.HTTP_404_NOT_FOUND)
             
             # Update fields if provided
             updated = False
@@ -115,12 +134,13 @@ class ProductView(APIView):
             return Response({'error': 'Failed to update product'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, product_id):
-        """Delete a product"""
+        """Delete a product from the authenticated shop"""
+        shop = request.register_user
         try:
             try:
-                product = Product.objects.get(product_id=product_id)
+                product = Product.objects.get(product_id=product_id, shop=shop)
             except Product.DoesNotExist:
-                return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
+                return Response({'error': 'Product not found in your shop'}, status=status.HTTP_404_NOT_FOUND)
             
             # Check if product has associated batches
             if product.batch_set.exists():

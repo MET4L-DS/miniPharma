@@ -4,6 +4,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET
 from django.db.models import Q, Min, Sum
 from api.models import Product, Batch
+from api.auth import jwt_required
 import logging
 import random
 from datetime import date
@@ -11,14 +12,16 @@ from datetime import date
 logger = logging.getLogger(__name__)
 
 @csrf_exempt
+@jwt_required
 def search_medicines_with_batches(request):
-    """Search for medicines with their available batches"""
+    """Search for medicines with their available batches in the authenticated shop"""
     if request.method == "GET":
         search_query = request.GET.get('search', '').strip()
         if not search_query:
             return JsonResponse({'error': 'Search query is required'}, status=400)
 
         try:
+            shop = getattr(request, 'register_user', None)
             today = date.today()
             
             # Use Q objects for complex OR queries
@@ -27,7 +30,10 @@ def search_medicines_with_batches(request):
                 Q(product__brand_name__icontains=search_query),
                 quantity_in_stock__gt=0,
                 expiry_date__gt=today
-            ).select_related('product').order_by('product__brand_name', 'expiry_date')
+            )
+            if shop:
+                batches = batches.filter(shop=shop)
+            batches = batches.select_related('product').order_by('product__brand_name', 'expiry_date')
             
             results = []
             for b in batches:
@@ -142,14 +148,16 @@ def predict_salts(request):
     return JsonResponse(response, status=200)
 
 @csrf_exempt
+@jwt_required
 def get_medicine_suggestions(request):
-    """Get medicine suggestions for autocomplete"""
+    """Get medicine suggestions for autocomplete in the authenticated shop"""
     if request.method == "GET":
         search_query = request.GET.get('q', '').strip()
         if len(search_query) < 2:
             return JsonResponse([], safe=False)
 
         try:
+            shop = getattr(request, 'register_user', None)
             today = date.today()
             
             # Get products with their batch information
@@ -158,7 +166,11 @@ def get_medicine_suggestions(request):
                 Q(brand_name__icontains=search_query),
                 batch__quantity_in_stock__gt=0,
                 batch__expiry_date__gt=today
-            ).annotate(
+            )
+            if shop:
+                products = products.filter(shop=shop)
+            
+            products = products.annotate(
                 min_price=Min('batch__selling_price'),
                 total_stock=Sum('batch__quantity_in_stock')
             ).values(

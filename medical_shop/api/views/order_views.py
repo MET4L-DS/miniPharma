@@ -12,12 +12,14 @@ logger = logging.getLogger(__name__)
 @csrf_exempt
 @jwt_required
 def create_order(request):
-    """Create a new order"""
+    """Create a new order for the authenticated shop"""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
+            shop = request.register_user
             
             order = Order.objects.create(
+                shop=shop,
                 customer_name=data.get('customer_name'),
                 customer_number=data.get('customer_number'),
                 doctor_name=data.get('doctor_name'),
@@ -36,14 +38,19 @@ def create_order(request):
     return JsonResponse({'error': 'Method not allowed. Use POST.'}, status=405)
 
 @csrf_exempt
+@jwt_required
 def get_orders(request):
-    """Get all orders with their items"""
+    """Get all orders for the authenticated shop"""
     if request.method == 'GET':
         try:
+            shop = getattr(request, 'register_user', None)
             orders = Order.objects.prefetch_related(
                 Prefetch('orderitem_set',
                         queryset=OrderItem.objects.select_related('batch__product'))
-            ).order_by('-order_date')
+            )
+            if shop:
+                orders = orders.filter(shop=shop)
+            orders = orders.order_by('-order_date')
             
             results = []
             for order in orders:
@@ -80,6 +87,7 @@ def get_orders(request):
     return JsonResponse({'error': 'Method not allowed. Use GET.'}, status=405)
 
 @csrf_exempt
+@jwt_required
 def get_order_items(request, order_id):
     """Get all items for a specific order"""
     if request.method == 'GET':
@@ -112,15 +120,16 @@ def get_order_items(request, order_id):
 @csrf_exempt
 @jwt_required
 def update_order(request, order_id):
-    """Update an existing order"""
+    """Update an existing order in the authenticated shop"""
     if request.method == 'PUT':
         try:
             data = json.loads(request.body)
+            shop = request.register_user
             
             try:
-                order = Order.objects.get(order_id=order_id)
+                order = Order.objects.get(order_id=order_id, shop=shop)
             except Order.DoesNotExist:
-                return JsonResponse({'error': 'Order not found'}, status=404)
+                return JsonResponse({'error': 'Order not found in your shop'}, status=404)
             
             # Update fields if provided
             updated = False
@@ -147,16 +156,17 @@ def update_order(request, order_id):
 @csrf_exempt
 @jwt_required
 def delete_order(request, order_id):
-    """Delete an order and its related items"""
+    """Delete an order from the authenticated shop"""
     if request.method == 'DELETE':
         try:
+            shop = request.register_user
             try:
-                order = Order.objects.get(order_id=order_id)
+                order = Order.objects.get(order_id=order_id, shop=shop)
                 # Django will cascade delete related items (payment, orderitems) automatically
                 order.delete()
                 return JsonResponse({'message': 'Order deleted successfully'}, status=200)
             except Order.DoesNotExist:
-                return JsonResponse({'error': 'Order not found'}, status=404)
+                return JsonResponse({'error': 'Order not found in your shop'}, status=404)
 
         except Exception as e:
             logger.error(f"Error deleting order: {str(e)}")
@@ -167,10 +177,11 @@ def delete_order(request, order_id):
 @csrf_exempt
 @jwt_required
 def add_order_items(request):
-    """Add items to an order"""
+    """Add items to an order in the authenticated shop"""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
+            shop = request.register_user
             order_items = data.get('items', [])
 
             if not order_items:
@@ -182,8 +193,8 @@ def add_order_items(request):
                 if not all(key in item for key in required_fields):
                     return JsonResponse({'error': f'Each item must have: {", ".join(required_fields)}'}, status=400)
 
-            # Get the last order
-            last_order = Order.objects.order_by('-order_id').first()
+            # Get the last order for this shop
+            last_order = Order.objects.filter(shop=shop).order_by('-order_id').first()
             
             if not last_order:
                 return JsonResponse({'error': 'No orders found'}, status=400)

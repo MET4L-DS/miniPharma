@@ -117,11 +117,16 @@ def delete_payment(request, order_id):
     return JsonResponse({'error': 'Method not allowed. Use DELETE.'}, status=405)
 
 @csrf_exempt
+@jwt_required
 def get_payments(request):
-    """Get all payments with improved null handling"""
+    """Get all payments for the authenticated shop"""
     if request.method == 'GET':
         try:
-            payments = Payment.objects.select_related('order').order_by('-order__order_date')
+            shop = getattr(request, 'register_user', None)
+            payments = Payment.objects.select_related('order')
+            if shop:
+                payments = payments.filter(order__shop=shop)
+            payments = payments.order_by('-order__order_date')
             
             results = []
             for p in payments:
@@ -143,12 +148,15 @@ def get_payments(request):
     return JsonResponse({'error': 'Method not allowed. Use GET.'}, status=405)
 
 @csrf_exempt
+@jwt_required
 def get_payment_summary(request):
     """Get payment summary statistics"""
     if request.method == 'GET':
         try:
-            # Get summary statistics using ORM aggregation
-            summary = Payment.objects.select_related('order').aggregate(
+            shop = request.register_user
+            # Get summary statistics using ORM aggregation, filtered by shop
+            payments = Payment.objects.select_related('order').filter(order__shop=shop)
+            summary = payments.aggregate(
                 total_orders=Count('order_id', distinct=True),
                 total_revenue=Sum('order__total_amount'),
                 total_cash=Sum('transaction_amount', filter=Q(payment_type='CASH')),

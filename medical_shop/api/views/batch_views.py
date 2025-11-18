@@ -11,6 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 @method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(jwt_required, name='get')
 @method_decorator(jwt_required, name='post')
 @method_decorator(jwt_required, name='put')
 @method_decorator(jwt_required, name='delete')
@@ -18,11 +19,17 @@ class BatchView(APIView):
     """Handle Batch CRUD operations"""
     
     def get(self, request, batch_id=None):
-        """Get all batches or a specific batch"""
+        """Get all batches or a specific batch for the authenticated shop"""
         try:
+            shop = getattr(request, 'register_user', None)
+            
             if batch_id:
                 try:
-                    batch = Batch.objects.select_related('product').get(id=batch_id)
+                    query = Batch.objects.select_related('product')
+                    if shop:
+                        query = query.filter(shop=shop)
+                    batch = query.get(id=batch_id)
+                    
                     batch_data = {
                         'id': batch.id,
                         'batch_number': batch.batch_number,
@@ -38,7 +45,11 @@ class BatchView(APIView):
                 except Batch.DoesNotExist:
                     return Response({'error': 'Batch not found'}, status=status.HTTP_404_NOT_FOUND)
             else:
-                batches = Batch.objects.select_related('product').all().order_by('-expiry_date')
+                batches = Batch.objects.select_related('product')
+                if shop:
+                    batches = batches.filter(shop=shop)
+                batches = batches.order_by('-expiry_date')
+                
                 results = [{
                     'id': b.id,
                     'batch_number': b.batch_number,
@@ -57,8 +68,9 @@ class BatchView(APIView):
             return Response({'error': 'An unexpected error occurred'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def post(self, request):
-        """Create a new batch"""
+        """Create a new batch for the authenticated shop"""
         data = request.data
+        shop = request.register_user
         
         required_fields = ['batch_number', 'product_id', 'expiry_date']
         for field in required_fields:
@@ -66,18 +78,19 @@ class BatchView(APIView):
                 return Response({'error': f'{field} is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # Check if product exists
+            # Check if product exists for this shop
             try:
-                product = Product.objects.get(product_id=data['product_id'])
+                product = Product.objects.get(product_id=data['product_id'], shop=shop)
             except Product.DoesNotExist:
-                return Response({'error': 'Product does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'Product does not exist in your shop'}, status=status.HTTP_400_BAD_REQUEST)
             
-            # Check if batch already exists for this product
-            if Batch.objects.filter(batch_number=data['batch_number'], product=product).exists():
-                return Response({'error': 'Batch already exists for this product'}, status=status.HTTP_400_BAD_REQUEST)
+            # Check if batch already exists for this product in this shop
+            if Batch.objects.filter(batch_number=data['batch_number'], product=product, shop=shop).exists():
+                return Response({'error': 'Batch already exists for this product in your shop'}, status=status.HTTP_400_BAD_REQUEST)
             
             # Create new batch
             Batch.objects.create(
+                shop=shop,
                 batch_number=data['batch_number'],
                 product=product,
                 expiry_date=data['expiry_date'],
@@ -93,14 +106,15 @@ class BatchView(APIView):
             return Response({'error': 'Failed to create batch'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def put(self, request, batch_id):
-        """Update an existing batch"""
+        """Update an existing batch in the authenticated shop"""
         data = request.data
+        shop = request.register_user
         
         try:
             try:
-                batch = Batch.objects.get(id=batch_id)
+                batch = Batch.objects.get(id=batch_id, shop=shop)
             except Batch.DoesNotExist:
-                return Response({'error': 'Batch not found'}, status=status.HTTP_404_NOT_FOUND)
+                return Response({'error': 'Batch not found in your shop'}, status=status.HTTP_404_NOT_FOUND)
             
             # Update fields if provided
             updated = False
@@ -121,12 +135,13 @@ class BatchView(APIView):
             return Response({'error': 'Failed to update batch'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, batch_id):
-        """Delete a batch"""
+        """Delete a batch from the authenticated shop"""
+        shop = request.register_user
         try:
             try:
-                batch = Batch.objects.get(id=batch_id)
+                batch = Batch.objects.get(id=batch_id, shop=shop)
             except Batch.DoesNotExist:
-                return Response({'error': 'Batch not found'}, status=status.HTTP_404_NOT_FOUND)
+                return Response({'error': 'Batch not found in your shop'}, status=status.HTTP_404_NOT_FOUND)
             
             # Check if batch is used in any orders
             if batch.orderitem_set.exists():
