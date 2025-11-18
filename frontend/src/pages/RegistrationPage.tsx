@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { apiService } from "@/services/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 const RegistrationPage = () => {
 	const [phoneNumber, setPhoneNumber] = useState("");
@@ -24,6 +25,7 @@ const RegistrationPage = () => {
 	const [manager, setManager] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
 	const navigate = useNavigate();
+	const { login } = useAuth();
 
 	const handleRegister = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -49,15 +51,31 @@ const RegistrationPage = () => {
 		}
 
 		try {
-			await apiService.register({
+			const data: any = await apiService.register({
 				phone: phoneNumber,
 				password: password,
 				shopname: shopName,
 				manager: manager || undefined,
 			});
 
-			toast.success("Registration successful! Please login to continue.");
-			navigate("/login");
+			// If backend returned a token, auto-login and navigate to dashboard
+			const userData = {
+				phone: phoneNumber,
+				shopname: data.shopname || "",
+				manager: data.manager || "",
+			};
+			if (data.token) {
+				login(userData, data.token);
+				toast.success(
+					"Registration successful — you are now logged in."
+				);
+				navigate("/dashboard");
+			} else {
+				toast.success(
+					"Registration successful! Please login to continue."
+				);
+				navigate("/login");
+			}
 		} catch (error) {
 			console.error("Registration error:", error);
 			const errorMessage =

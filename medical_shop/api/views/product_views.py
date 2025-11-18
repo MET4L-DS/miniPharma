@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+from api.auth import jwt_required
 from django.db.models import ProtectedError
 from api.models import Product
 import logging
@@ -10,6 +11,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 @method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(jwt_required, name='post')
+@method_decorator(jwt_required, name='put')
+@method_decorator(jwt_required, name='delete')
 class ProductView(APIView):
     """Handle Product CRUD operations"""
     

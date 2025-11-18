@@ -5,11 +5,15 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import ProtectedError
 from api.models import Batch, Product
+from api.auth import jwt_required
 import logging
 
 logger = logging.getLogger(__name__)
 
 @method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(jwt_required, name='post')
+@method_decorator(jwt_required, name='put')
+@method_decorator(jwt_required, name='delete')
 class BatchView(APIView):
     """Handle Batch CRUD operations"""
     

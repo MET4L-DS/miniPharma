@@ -3,6 +3,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.hashers import make_password, check_password
 from django.core.exceptions import ValidationError
 from api.models import Register
+from api.auth import generate_token, jwt_required
 import json
 import logging
 
@@ -43,14 +44,17 @@ def register_user(request):
             manager_instance = Register.objects.get(phone=manager) if manager else None
 
             # Create new user
-            Register.objects.create(
+            user = Register.objects.create(
                 phone=phone,
                 password=hashed_password,
                 manager=manager_instance,
                 shopname=shopname
             )
 
-            return JsonResponse({'message': 'User registered successfully'}, status=201)
+            # Generate JWT token for newly created user
+            token = generate_token(user)
+
+            return JsonResponse({'message': 'User registered successfully', 'token': token, 'shopname': user.shopname, 'manager': user.manager.phone if user.manager else None}, status=201)
 
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON format'}, status=400)
@@ -76,8 +80,11 @@ def login_user(request):
                 user = Register.objects.get(phone=phone)
                 if not check_password(password, user.password):
                     return JsonResponse({'error': 'Invalid phone or password'}, status=401)
-                
-                return JsonResponse({'message': 'Login successful'}, status=200)
+
+                # generate JWT token
+                token = generate_token(user)
+
+                return JsonResponse({'message': 'Login successful', 'token': token, 'shopname': user.shopname, 'manager': user.manager.phone if user.manager else None}, status=200)
             except Register.DoesNotExist:
                 return JsonResponse({'error': 'Invalid phone or password'}, status=401)
 
@@ -90,6 +97,7 @@ def login_user(request):
     return JsonResponse({'error': 'Method not allowed. Use POST.'}, status=405)
 
 @csrf_exempt
+@jwt_required
 def get_users(request):
     """Get all users"""
     if request.method == 'GET':
@@ -119,6 +127,11 @@ def update_user(request, phone):
         try:
             data = json.loads(request.body)
             
+            # Ensure the caller is authenticated and matches the phone being updated
+            caller = getattr(request, 'register_user', None)
+            if not caller or str(caller.phone) != str(phone):
+                return JsonResponse({'error': 'Permission denied'}, status=403)
+
             try:
                 user = Register.objects.get(phone=phone)
             except Register.DoesNotExist:
@@ -162,10 +175,16 @@ def update_user(request, phone):
     return JsonResponse({'error': 'Method not allowed. Use PUT.'}, status=405)
 
 @csrf_exempt
+@jwt_required
 def delete_user(request, phone):
     """Delete a user"""
     if request.method == 'DELETE':
         try:
+            # Only allow deletion by the same user
+            caller = getattr(request, 'register_user', None)
+            if not caller or str(caller.phone) != str(phone):
+                return JsonResponse({'error': 'Permission denied'}, status=403)
+
             try:
                 user = Register.objects.get(phone=phone)
                 user.delete()

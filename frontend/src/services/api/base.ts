@@ -9,9 +9,12 @@ export const API_BASE_URL =
 export class BaseApiService {
 	protected async makeRequest(endpoint: string, options: RequestInit = {}) {
 		const url = `${API_BASE_URL}${endpoint}`;
+		// Attach Authorization header when token is present in localStorage
+		const token = localStorage.getItem("authToken");
 		const defaultOptions: RequestInit = {
 			headers: {
 				"Content-Type": "application/json",
+				...(token ? { Authorization: `Bearer ${token}` } : {}),
 				...options.headers,
 			},
 		};

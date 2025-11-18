@@ -15,7 +15,7 @@ interface User {
 
 interface AuthContextType {
 	user: User | null;
-	login: (userData: User) => void;
+	login: (userData: User, token?: string) => void;
 	logout: () => void;
 	isAuthenticated: boolean;
 	isLoading: boolean;
@@ -29,12 +29,14 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 	const [user, setUser] = useState<User | null>(null);
+	const [token, setToken] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 
 	useEffect(() => {
 		// Check for stored user data on app initialization
 		const storedUser = localStorage.getItem("userPhone");
 		const storedUserData = localStorage.getItem("userData");
+		const storedToken = localStorage.getItem("authToken");
 
 		if (storedUser && storedUserData) {
 			try {
@@ -46,17 +48,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 				localStorage.removeItem("userData");
 			}
 		}
+
+		if (storedToken) {
+			setToken(storedToken);
+		}
 		setIsLoading(false);
 	}, []);
 
-	const login = (userData: User) => {
+	const login = (userData: User, authToken?: string) => {
 		setUser(userData);
 		localStorage.setItem("userPhone", userData.phone);
 		localStorage.setItem("userData", JSON.stringify(userData));
+		if (authToken) {
+			setToken(authToken);
+			localStorage.setItem("authToken", authToken);
+		}
 	};
 
 	const logout = () => {
 		setUser(null);
+		setToken(null);
+		localStorage.removeItem("authToken");
 		localStorage.removeItem("userPhone");
 		localStorage.removeItem("userData");
 	};

@@ -3,12 +3,14 @@ from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 from django.db.models import F, Q, Prefetch
 from api.models import Order, OrderItem, Batch, Product
+from api.auth import jwt_required
 import json
 import logging
 
 logger = logging.getLogger(__name__)
 
 @csrf_exempt
+@jwt_required
 def create_order(request):
     """Create a new order"""
     if request.method == 'POST':
@@ -108,6 +110,7 @@ def get_order_items(request, order_id):
 
 
 @csrf_exempt
+@jwt_required
 def update_order(request, order_id):
     """Update an existing order"""
     if request.method == 'PUT':
@@ -142,6 +145,7 @@ def update_order(request, order_id):
     return JsonResponse({'error': 'Method not allowed. Use PUT.'}, status=405)
 
 @csrf_exempt
+@jwt_required
 def delete_order(request, order_id):
     """Delete an order and its related items"""
     if request.method == 'DELETE':
@@ -161,6 +165,7 @@ def delete_order(request, order_id):
     return JsonResponse({'error': 'Method not allowed. Use DELETE.'}, status=405)
 
 @csrf_exempt
+@jwt_required
 def add_order_items(request):
     """Add items to an order"""
     if request.method == 'POST':

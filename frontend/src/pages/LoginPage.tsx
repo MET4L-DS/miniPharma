@@ -45,7 +45,7 @@ const LoginPage = () => {
 		}
 
 		try {
-			const data = await apiService.login({
+			const data: any = await apiService.login({
 				phone: phoneNumber,
 				password: password,
 			});
@@ -59,8 +59,8 @@ const LoginPage = () => {
 				manager: data.manager || "",
 			};
 
-			// Update authentication state
-			login(userData);
+			// Update authentication state with token
+			login(userData, data.token);
 
 			// Navigate to intended destination or dashboard
 			navigate(from, { replace: true });

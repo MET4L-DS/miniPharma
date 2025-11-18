@@ -2,6 +2,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Sum, Q, Count, F
 from api.models import Payment, Order
+from api.auth import jwt_required
 import json
 import logging
 from decimal import Decimal
@@ -9,6 +10,7 @@ from decimal import Decimal
 logger = logging.getLogger(__name__)
 
 @csrf_exempt
+@jwt_required
 def add_payment(request):
     """Add payment for an order"""
     if request.method == 'POST':
@@ -55,6 +57,7 @@ def add_payment(request):
     return JsonResponse({'error': 'Method not allowed. Use POST.'}, status=405)
 
 @csrf_exempt
+@jwt_required
 def update_payment(request, order_id):
     """Update payment for an order"""
     if request.method == 'PUT':
@@ -95,6 +98,7 @@ def update_payment(request, order_id):
     return JsonResponse({'error': 'Method not allowed. Use PUT.'}, status=405)
 
 @csrf_exempt
+@jwt_required
 def delete_payment(request, order_id):
     """Delete payment for an order"""
     if request.method == 'DELETE':
