@@ -6,6 +6,8 @@ import { BatchService } from "./api/batch";
 import { OrderService } from "./api/order";
 import { PaymentService } from "./api/payment";
 import { DashboardService } from "./api/dashboard";
+import { StaffService } from "./api/staff";
+import { ShopService } from "./api/shop";
 
 // Re-export all types for convenience
 export * from "@/types/api";
@@ -21,6 +23,8 @@ class ApiService {
 	private order: OrderService;
 	private payment: PaymentService;
 	private dashboard: DashboardService;
+	private staff: StaffService;
+	private shop: ShopService;
 
 	constructor() {
 		this.auth = new AuthService();
@@ -29,6 +33,8 @@ class ApiService {
 		this.order = new OrderService();
 		this.payment = new PaymentService();
 		this.dashboard = new DashboardService();
+		this.staff = new StaffService();
+		this.shop = new ShopService();
 	}
 
 	// ==================== AUTH METHODS ====================
@@ -155,6 +161,32 @@ class ApiService {
 
 	getSalesData(...args: Parameters<DashboardService["getSalesData"]>) {
 		return this.dashboard.getSalesData(...args);
+	}
+
+	// ==================== STAFF METHODS ====================
+	listStaff(...args: Parameters<StaffService["listStaff"]>) {
+		return this.staff.listStaff(...args);
+	}
+
+	addStaff(...args: Parameters<StaffService["addStaff"]>) {
+		return this.staff.addStaff(...args);
+	}
+
+	removeStaff(...args: Parameters<StaffService["removeStaff"]>) {
+		return this.staff.removeStaff(...args);
+	}
+
+	// ==================== SHOP METHODS ====================
+	getMyShops(...args: Parameters<ShopService["getMyShops"]>) {
+		return this.shop.getMyShops(...args);
+	}
+
+	switchShop(...args: Parameters<ShopService["switchShop"]>) {
+		return this.shop.switchShop(...args);
+	}
+
+	addShop(...args: Parameters<ShopService["addShop"]>) {
+		return this.shop.addShop(...args);
 	}
 
 	// ==================== COMPOSITE OPERATIONS ====================

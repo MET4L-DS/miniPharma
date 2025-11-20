@@ -21,8 +21,8 @@ const RegistrationPage = () => {
 	const [phoneNumber, setPhoneNumber] = useState("");
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
+	const [name, setName] = useState("");
 	const [shopName, setShopName] = useState("");
-	const [manager, setManager] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
 	const navigate = useNavigate();
 	const { login } = useAuth();
@@ -54,15 +54,18 @@ const RegistrationPage = () => {
 			const data: any = await apiService.register({
 				phone: phoneNumber,
 				password: password,
+				name: name,
 				shopname: shopName,
-				manager: manager || undefined,
 			});
 
 			// If backend returned a token, auto-login and navigate to dashboard
 			const userData = {
 				phone: phoneNumber,
-				shopname: data.shopname || "",
-				manager: data.manager || "",
+				shopname: data.shopname || shopName,
+				manager: "",
+				accountPhone: phoneNumber,
+				shopId: data.shop_id,
+				role: "manager" as const,
 			};
 			if (data.token) {
 				login(userData, data.token);
@@ -128,13 +131,13 @@ const RegistrationPage = () => {
 						</div>
 
 						<div className="space-y-2">
-							<Label htmlFor="manager">Manager</Label>
+							<Label htmlFor="name">Your Name</Label>
 							<Input
-								id="manager"
+								id="name"
 								type="text"
-								placeholder="Manager name (optional)"
-								value={manager}
-								onChange={(e) => setManager(e.target.value)}
+								placeholder="Enter your name"
+								value={name}
+								onChange={(e) => setName(e.target.value)}
 							/>
 						</div>
 

@@ -2,7 +2,8 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.hashers import make_password, check_password
 from django.core.exceptions import ValidationError
-from api.models import Register
+from django.db.models import Q
+from api.models import Shop, Staff, Manager
 from api.auth import generate_token, jwt_required
 import json
 import logging
@@ -11,50 +12,52 @@ logger = logging.getLogger(__name__)
 
 @csrf_exempt
 def register_user(request):
-    """Create a new user registration"""
+    """Create a new manager account and their first shop"""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
             phone = data.get('phone')
             password = data.get('password')
-            manager = data.get('manager')  # Optional manager phone number
+            name = data.get('name', '')  # Manager name (optional, defaults to empty)
             shopname = data.get('shopname')
+            contact_number = data.get('contact_number', '')  # Optional shop contact
 
-            if not all([phone, password]):
-                return JsonResponse({'error': 'Phone and password are required'}, status=400)
+            if not all([phone, password, shopname]):
+                return JsonResponse({'error': 'Phone, password, and shopname are required'}, status=400)
 
             if len(phone) != 10 or not phone.isdigit():
                 return JsonResponse({'error': 'Phone number must be 10 digits'}, status=400)
 
-            # Validate manager if provided
-            if manager:
-                if len(manager) != 10 or not manager.isdigit():
-                    return JsonResponse({'error': 'Manager phone number must be 10 digits'}, status=400)
-                
-                if not Register.objects.filter(phone=manager).exists():
-                    return JsonResponse({'error': 'Manager phone number does not exist'}, status=400)
-
-            # Check if phone already exists
-            if Register.objects.filter(phone=phone).exists():
-                return JsonResponse({'error': 'Phone number already exists'}, status=400)
+            # Check if manager already exists
+            if Manager.objects.filter(phone=phone).exists():
+                return JsonResponse({'error': 'Phone number already registered as manager'}, status=400)
 
             hashed_password = make_password(password)
             
-            # Get manager instance if provided
-            manager_instance = Register.objects.get(phone=manager) if manager else None
-
-            # Create new user
-            user = Register.objects.create(
+            # Create new manager
+            manager = Manager.objects.create(
                 phone=phone,
-                password=hashed_password,
-                manager=manager_instance,
-                shopname=shopname
+                name=name if name else f'Manager {phone}',  # Use phone as fallback if name not provided
+                password=hashed_password
             )
 
-            # Generate JWT token for newly created user
-            token = generate_token(user)
+            # Create first shop for this manager
+            shop = Shop.objects.create(
+                shopname=shopname,
+                contact_number=contact_number if contact_number else None,
+                manager=manager
+            )
 
-            return JsonResponse({'message': 'User registered successfully', 'token': token, 'shopname': user.shopname, 'manager': user.manager.phone if user.manager else None}, status=201)
+            # Generate JWT token for newly created manager
+            token = generate_token(account_phone=manager.phone, shop_id=shop.shop_id)
+
+            return JsonResponse({
+                'message': 'Manager and shop registered successfully',
+                'token': token,
+                'shop_id': shop.shop_id,
+                'shopname': shop.shopname,
+                'manager': manager.phone
+            }, status=201)
 
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON format'}, status=400)
@@ -76,17 +79,51 @@ def login_user(request):
             if not all([phone, password]):
                 return JsonResponse({'error': 'Phone and password are required'}, status=400)
 
+            # First try staff login (staff phone is unique across all shops)
             try:
-                user = Register.objects.get(phone=phone)
-                if not check_password(password, user.password):
+                staff = Staff.objects.get(phone=phone)
+                if not check_password(password, staff.password):
                     return JsonResponse({'error': 'Invalid phone or password'}, status=401)
+                
+                if not staff.is_active:
+                    return JsonResponse({'error': 'Staff account is inactive'}, status=403)
+                
+                # Generate token for staff with shop context
+                token = generate_token(account_phone=staff.phone, shop_id=staff.shop.shop_id)
+                return JsonResponse({
+                    'message': 'Login successful', 
+                    'token': token,
+                    'shop_id': staff.shop.shop_id,
+                    'shopname': staff.shop.shopname, 
+                    'manager': staff.shop.manager.phone if staff.shop.manager else None,
+                    'is_staff': True
+                }, status=200)
+                
+            except Staff.DoesNotExist:
+                # Not a staff, try manager login
+                try:
+                    manager = Manager.objects.get(phone=phone)
+                    if not check_password(password, manager.password):
+                        return JsonResponse({'error': 'Invalid phone or password'}, status=401)
 
-                # generate JWT token
-                token = generate_token(user)
+                    # Get the first shop for this manager
+                    first_shop = Shop.objects.filter(manager=manager).first()
+                    if not first_shop:
+                        return JsonResponse({'error': 'No shops found for this manager'}, status=404)
 
-                return JsonResponse({'message': 'Login successful', 'token': token, 'shopname': user.shopname, 'manager': user.manager.phone if user.manager else None}, status=200)
-            except Register.DoesNotExist:
-                return JsonResponse({'error': 'Invalid phone or password'}, status=401)
+                    # Generate JWT token for manager with first shop context
+                    token = generate_token(account_phone=manager.phone, shop_id=first_shop.shop_id)
+
+                    return JsonResponse({
+                        'message': 'Login successful',
+                        'token': token,
+                        'shop_id': first_shop.shop_id,
+                        'shopname': first_shop.shopname,
+                        'manager': manager.phone,
+                        'is_manager': True
+                    }, status=200)
+                except Manager.DoesNotExist:
+                    return JsonResponse({'error': 'Invalid phone or password'}, status=401)
 
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON format'}, status=400)
@@ -99,15 +136,16 @@ def login_user(request):
 @csrf_exempt
 @jwt_required
 def get_users(request):
-    """Get all users"""
+    """Get all shops"""
     if request.method == 'GET':
         try:
-            users = Register.objects.all().order_by('phone').values(
-                'phone',
+            shops = Shop.objects.all().order_by('shop_id').values(
+                'shop_id',
                 'shopname',
+                'contact_number',
                 manager_phone='manager__phone'
             )
-            results = list(users)
+            results = list(shops)
             # Replace manager_phone with manager for compatibility
             for result in results:
                 result['manager'] = result.pop('manager_phone', None)
@@ -120,51 +158,229 @@ def get_users(request):
     
     return JsonResponse({'error': 'Method not allowed. Use GET.'}, status=405)
 
+
 @csrf_exempt
-def update_user(request, phone):
-    """Update user information"""
+@jwt_required
+def list_staffs(request, shop_id):
+    """List staff for a given shop. Only accessible to authenticated users (manager/staff)."""
+    if request.method == 'GET':
+        try:
+            # Get the shop context from token
+            caller_shop = getattr(request, 'register_user', None)
+            caller_account = getattr(request, 'account_user', None)
+
+            try:
+                shop = Shop.objects.get(shop_id=shop_id)
+            except Shop.DoesNotExist:
+                return JsonResponse({'error': 'Shop not found'}, status=404)
+
+            # Permission: caller must be the shop's manager OR a staff member of the shop
+            caller_account = getattr(request, 'account_user', None)
+            if not caller_account:
+                return JsonResponse({'error': 'Not authenticated'}, status=401)
+
+            is_manager = isinstance(caller_account, Manager) and shop.manager and str(caller_account.phone) == str(shop.manager.phone)
+            is_staff_of_shop = isinstance(caller_account, Staff) and str(caller_account.shop.shop_id) == str(shop.shop_id)
+
+            if not (is_manager or is_staff_of_shop):
+                return JsonResponse({'error': 'Permission denied'}, status=403)
+
+            staffs = Staff.objects.filter(shop=shop).values('phone', 'name', 'is_active')
+            staff_list = list(staffs)
+            for staff in staff_list:
+                staff['shop_id'] = shop.shop_id
+            return JsonResponse(staff_list, safe=False, status=200)
+        except Exception as e:
+            logger.error(f"Error listing staffs: {str(e)}")
+            return JsonResponse({'error': 'Failed to list staffs'}, status=500)
+
+    return JsonResponse({'error': 'Method not allowed. Use GET.'}, status=405)
+
+
+@csrf_exempt
+@jwt_required
+def my_shops(request):
+    """Return shops managed by the authenticated manager (for UI shop switching)."""
+    if request.method == 'GET':
+        try:
+            caller_account = getattr(request, 'account_user', None)
+            
+            if not caller_account:
+                return JsonResponse({'error': 'Not authenticated'}, status=401)
+
+            # Only managers can have multiple shops
+            if isinstance(caller_account, Staff):
+                return JsonResponse({'error': 'Staff cannot manage multiple shops'}, status=403)
+
+            if not isinstance(caller_account, Manager):
+                return JsonResponse({'error': 'Only managers can access multiple shops'}, status=403)
+
+            # Return all shops for this manager
+            shops = Shop.objects.filter(manager=caller_account).values('shop_id', 'shopname', 'contact_number')
+            
+            shop_list = []
+            for shop in shops:
+                shop_list.append({
+                    'shop_id': shop['shop_id'],
+                    'shopname': shop['shopname'],
+                    'contact_number': shop['contact_number'],
+                    'manager': caller_account.phone
+                })
+            return JsonResponse(shop_list, safe=False, status=200)
+        except Exception as e:
+            logger.error(f"Error fetching my shops: {str(e)}")
+            return JsonResponse({'error': 'Failed to fetch shops'}, status=500)
+
+    return JsonResponse({'error': 'Method not allowed. Use GET.'}, status=405)
+
+
+@csrf_exempt
+@jwt_required
+def switch_shop(request, shop_id):
+    """Allow a manager to switch active shop context; returns a new token scoped to the selected shop."""
+    if request.method == 'POST':
+        try:
+            caller_account = getattr(request, 'account_user', None)
+            if not caller_account:
+                return JsonResponse({'error': 'Not authenticated'}, status=401)
+
+            # Only managers can switch shops
+            if not isinstance(caller_account, Manager):
+                return JsonResponse({'error': 'Only managers can switch shops'}, status=403)
+
+            try:
+                shop = Shop.objects.get(shop_id=shop_id)
+            except Shop.DoesNotExist:
+                return JsonResponse({'error': 'Shop not found'}, status=404)
+
+            # Check if caller manages this shop
+            if not shop.manager or str(caller_account.phone) != str(shop.manager.phone):
+                return JsonResponse({'error': 'You do not manage this shop'}, status=403)
+
+            # generate token with manager as account and shop as context
+            token = generate_token(account_phone=caller_account.phone, shop_id=shop.shop_id)
+            return JsonResponse({'success': True, 'token': token, 'shop': {'shop_id': shop.shop_id, 'shopname': shop.shopname, 'contact_number': shop.contact_number, 'manager': shop.manager.phone if shop.manager else None}}, status=200)
+        except Exception as e:
+            logger.error(f"Error switching shop: {str(e)}")
+            return JsonResponse({'error': 'Failed to switch shop'}, status=500)
+
+    return JsonResponse({'error': 'Method not allowed. Use POST.'}, status=405)
+
+
+@csrf_exempt
+@jwt_required
+def add_staff(request, shop_id):
+    """Manager can add staff for their shop. Payload: phone, password, name"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            phone = data.get('phone')
+            password = data.get('password')
+            name = data.get('name')
+
+            if not all([phone, password]):
+                return JsonResponse({'error': 'Phone and password required'}, status=400)
+
+            try:
+                shop = Shop.objects.get(shop_id=shop_id)
+            except Shop.DoesNotExist:
+                return JsonResponse({'error': 'Shop not found'}, status=404)
+
+            # Only the shop's manager can add staff
+            caller_account = getattr(request, 'account_user', None)
+            logger.debug(f"add_staff - caller_account: {caller_account}, type: {type(caller_account)}, shop.manager: {shop.manager}")
+            
+            if not caller_account or not isinstance(caller_account, Manager):
+                return JsonResponse({'error': 'Only managers can add staff'}, status=403)
+            
+            if not shop.manager or str(caller_account.phone) != str(shop.manager.phone):
+                logger.error(f"Permission denied - caller: {caller_account.phone}, shop manager: {shop.manager.phone if shop.manager else 'None'}")
+                return JsonResponse({'error': f'Permission denied: Only this shop\'s manager can add staff'}, status=403)
+
+            if Staff.objects.filter(phone=phone, shop=shop).exists():
+                return JsonResponse({'error': 'Staff already exists for this shop'}, status=400)
+
+            hashed = make_password(password)
+            staff = Staff.objects.create(phone=phone, name=name, password=hashed, shop=shop)
+            return JsonResponse({'message': 'Staff added', 'phone': staff.phone, 'shop_id': shop.shop_id}, status=201)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        except Exception as e:
+            logger.error(f"Error adding staff: {str(e)}")
+            return JsonResponse({'error': 'Failed to add staff'}, status=500)
+
+    return JsonResponse({'error': 'Method not allowed. Use POST.'}, status=405)
+
+
+@csrf_exempt
+@jwt_required
+def remove_staff(request, shop_id, staff_phone):
+    """Manager can remove staff for their shop."""
+    if request.method == 'DELETE':
+        try:
+            try:
+                shop = Shop.objects.get(shop_id=shop_id)
+            except Shop.DoesNotExist:
+                return JsonResponse({'error': 'Shop not found'}, status=404)
+
+            # Only the shop's manager can remove staff
+            caller_account = getattr(request, 'account_user', None)
+            if not caller_account or not isinstance(caller_account, Manager):
+                return JsonResponse({'error': 'Only managers can remove staff'}, status=403)
+            
+            if not shop.manager or str(caller_account.phone) != str(shop.manager.phone):
+                return JsonResponse({'error': 'Permission denied: Only this shop\'s manager can remove staff'}, status=403)
+
+            try:
+                staff = Staff.objects.get(phone=staff_phone, shop=shop)
+                staff.delete()
+                return JsonResponse({'message': 'Staff removed'}, status=200)
+            except Staff.DoesNotExist:
+                return JsonResponse({'error': 'Staff not found'}, status=404)
+
+        except Exception as e:
+            logger.error(f"Error removing staff: {str(e)}")
+            return JsonResponse({'error': 'Failed to remove staff'}, status=500)
+
+    return JsonResponse({'error': 'Method not allowed. Use DELETE.'}, status=405)
+
+@csrf_exempt
+@jwt_required
+def update_shop(request, shop_id):
+    """Update shop information"""
     if request.method == 'PUT':
         try:
             data = json.loads(request.body)
             
-            # Ensure the caller is authenticated and matches the phone being updated
-            caller = getattr(request, 'register_user', None)
-            if not caller or str(caller.phone) != str(phone):
-                return JsonResponse({'error': 'Permission denied'}, status=403)
+            caller_account = getattr(request, 'account_user', None)
+            if not caller_account or not isinstance(caller_account, Manager):
+                return JsonResponse({'error': 'Only managers can update shops'}, status=403)
 
             try:
-                user = Register.objects.get(phone=phone)
-            except Register.DoesNotExist:
-                return JsonResponse({'error': 'User not found'}, status=404)
+                shop = Shop.objects.get(shop_id=shop_id)
+            except Shop.DoesNotExist:
+                return JsonResponse({'error': 'Shop not found'}, status=404)
+            
+            # Only the shop's manager can update it
+            if not shop.manager or str(caller_account.phone) != str(shop.manager.phone):
+                return JsonResponse({'error': 'Permission denied'}, status=403)
             
             # Update fields if provided
             updated = False
             
-            if 'manager' in data:
-                if data['manager']:
-                    try:
-                        manager_instance = Register.objects.get(phone=data['manager'])
-                        user.manager = manager_instance
-                        updated = True
-                    except Register.DoesNotExist:
-                        return JsonResponse({'error': 'Manager phone does not exist'}, status=400)
-                else:
-                    user.manager = None
-                    updated = True
-            
             if 'shopname' in data:
-                user.shopname = data['shopname']
+                shop.shopname = data['shopname']
                 updated = True
             
-            if 'password' in data:
-                user.password = make_password(data['password'])
+            if 'contact_number' in data:
+                shop.contact_number = data['contact_number']
                 updated = True
             
             if not updated:
                 return JsonResponse({'error': 'No fields to update'}, status=400)
             
-            user.save()
-            return JsonResponse({'message': 'User updated successfully'}, status=200)
+            shop.save()
+            return JsonResponse({'message': 'Shop updated successfully'}, status=200)
 
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON format'}, status=400)
@@ -176,24 +392,75 @@ def update_user(request, phone):
 
 @csrf_exempt
 @jwt_required
-def delete_user(request, phone):
-    """Delete a user"""
+def delete_shop(request, shop_id):
+    """Delete a shop"""
     if request.method == 'DELETE':
         try:
-            # Only allow deletion by the same user
-            caller = getattr(request, 'register_user', None)
-            if not caller or str(caller.phone) != str(phone):
-                return JsonResponse({'error': 'Permission denied'}, status=403)
+            caller_account = getattr(request, 'account_user', None)
+            if not caller_account or not isinstance(caller_account, Manager):
+                return JsonResponse({'error': 'Only managers can delete shops'}, status=403)
 
             try:
-                user = Register.objects.get(phone=phone)
-                user.delete()
-                return JsonResponse({'message': 'User deleted successfully'}, status=200)
-            except Register.DoesNotExist:
-                return JsonResponse({'error': 'User not found'}, status=404)
+                shop = Shop.objects.get(shop_id=shop_id)
+            except Shop.DoesNotExist:
+                return JsonResponse({'error': 'Shop not found'}, status=404)
+            
+            # Only the shop's manager can delete it
+            if not shop.manager or str(caller_account.phone) != str(shop.manager.phone):
+                return JsonResponse({'error': 'Permission denied'}, status=403)
+
+            shop.delete()
+            return JsonResponse({'message': 'Shop deleted successfully'}, status=200)
 
         except Exception as e:
             logger.error(f"Error deleting user: {str(e)}")
             return JsonResponse({'error': 'Failed to delete user'}, status=500)
 
     return JsonResponse({'error': 'Method not allowed. Use DELETE.'}, status=405)
+
+
+@csrf_exempt
+@jwt_required
+def add_shop(request):
+    """Manager can add a new shop. Payload: shopname, contact_number (optional)"""
+    if request.method == 'POST':
+        try:
+            caller_account = getattr(request, 'account_user', None)
+            
+            if not caller_account or not isinstance(caller_account, Manager):
+                return JsonResponse({'error': 'Only managers can add shops'}, status=403)
+
+            data = json.loads(request.body)
+            shopname = data.get('shopname')
+            contact_number = data.get('contact_number', '')
+
+            if not shopname:
+                return JsonResponse({'error': 'Shopname is required'}, status=400)
+
+            if contact_number and (len(contact_number) != 10 or not contact_number.isdigit()):
+                return JsonResponse({'error': 'Contact number must be 10 digits'}, status=400)
+
+            # Create new shop for this manager
+            shop = Shop.objects.create(
+                shopname=shopname,
+                contact_number=contact_number if contact_number else None,
+                manager=caller_account
+            )
+
+            return JsonResponse({
+                'message': 'Shop added successfully',
+                'shop': {
+                    'shop_id': shop.shop_id,
+                    'shopname': shop.shopname,
+                    'contact_number': shop.contact_number,
+                    'manager': shop.manager.phone
+                }
+            }, status=201)
+
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        except Exception as e:
+            logger.error(f"Error adding shop: {str(e)}", exc_info=True)
+            return JsonResponse({'error': 'Failed to add shop'}, status=500)
+
+    return JsonResponse({'error': 'Method not allowed. Use POST.'}, status=405)

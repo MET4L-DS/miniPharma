@@ -12,6 +12,8 @@ import BillingPage from "@/pages/BillingPage";
 import DashboardPage from "@/pages/DashboardPage";
 import StockPage from "@/pages/StockPage";
 import PaymentPage from "@/pages/PaymentPage";
+import StaffManagementPage from "@/pages/StaffManagementPage";
+import ShopManagementPage from "@/pages/ShopManagementPage";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -63,6 +65,22 @@ function App() {
 						element={
 							<ProtectedRoute>
 								<PaymentPage />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path="/staff"
+						element={
+							<ProtectedRoute>
+								<StaffManagementPage />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path="/shops"
+						element={
+							<ProtectedRoute>
+								<ShopManagementPage />
 							</ProtectedRoute>
 						}
 					/>

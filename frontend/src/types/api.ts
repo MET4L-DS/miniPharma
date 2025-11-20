@@ -144,13 +144,17 @@ export interface LoginRequest {
 
 export interface LoginResponse {
 	message: string;
+	shop_id?: number;
 	shopname?: string;
 	manager?: string;
+	is_manager?: boolean;
+	is_staff?: boolean;
 }
 
 export interface RegisterRequest {
 	phone: string;
 	password: string;
+	name?: string;
 	shopname: string;
 	manager?: string;
 }

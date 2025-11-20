@@ -7,8 +7,8 @@ from .views import (
     register_user,
     login_user,
     get_users,
-    update_user,
-    delete_user,
+    update_shop,
+    delete_shop,
     create_order,
     get_orders,
     get_order_items,
@@ -27,6 +27,12 @@ from .views import (
     get_low_stock,
     get_sales_data,
     predict_salts,
+    list_staffs,
+    add_staff,
+    remove_staff,
+    my_shops,
+    switch_shop,
+    add_shop,
 )
 
 @api_view(['GET'])
@@ -60,9 +66,9 @@ urlpatterns = [
     # ==================== USER/REGISTER URLS ====================
     path('register/', register_user, name='register_user'),  # POST
     path('login/', login_user, name='login_user'),  # POST
-    path('users/', get_users, name='get_users'),  # GET all
-    path('users/<str:phone>/', update_user, name='update_user'),  # PUT
-    path('users/<str:phone>/delete/', delete_user, name='delete_user'),  # DELETE
+    path('users/', get_users, name='get_users'),  # GET all shops
+    path('shops/<int:shop_id>/', update_shop, name='update_shop'),  # PUT
+    path('shops/<int:shop_id>/delete/', delete_shop, name='delete_shop'),  # DELETE
     
     # ==================== ORDER URLS ====================
     path('orders/', get_orders, name='get_orders'),  # GET all
@@ -92,4 +98,12 @@ urlpatterns = [
     path('dashboard/expiring-soon/', get_expiring_soon, name='expiring_soon'),  # GET
     path('dashboard/low-stock/', get_low_stock, name='low_stock'),  # GET
     path('dashboard/sales/', get_sales_data, name='sales_data'),  # GET
+
+    # ==================== SHOP STAFF MANAGEMENT ====================
+    path('shops/<int:shop_id>/staffs/', list_staffs, name='list_staffs'),  # GET
+    path('shops/<int:shop_id>/staffs/add/', add_staff, name='add_staff'),  # POST
+    path('shops/<int:shop_id>/staffs/<str:staff_phone>/remove/', remove_staff, name='remove_staff'),  # DELETE
+    path('shops/mine/', my_shops, name='my_shops'),  # GET
+    path('shops/add/', add_shop, name='add_shop'),  # POST - Add new shop for manager
+    path('shops/<int:shop_id>/switch/', switch_shop, name='switch_shop'),  # POST
 ]

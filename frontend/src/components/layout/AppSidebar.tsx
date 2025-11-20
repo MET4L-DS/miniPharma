@@ -29,6 +29,8 @@ import {
 	Settings,
 	Package,
 	CreditCard,
+	Users,
+	Store,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -62,10 +64,23 @@ const navigationItems: NavigationItem[] = [
 	},
 ];
 
+const managerOnlyItems: NavigationItem[] = [
+	{
+		title: "Staff Management",
+		url: "/staff",
+		icon: Users,
+	},
+	{
+		title: "My Shops",
+		url: "/shops",
+		icon: Store,
+	},
+];
+
 export function AppSidebar() {
 	const location = useLocation();
 	const navigate = useNavigate();
-	const { user, logout } = useAuth();
+	const { user, logout, isManager } = useAuth();
 
 	const handleLogout = () => {
 		logout();
@@ -114,6 +129,32 @@ export function AppSidebar() {
 						</SidebarMenu>
 					</SidebarGroupContent>
 				</SidebarGroup>
+
+				{/* Manager-only navigation items */}
+				{isManager && (
+					<SidebarGroup>
+						<SidebarGroupLabel>Management</SidebarGroupLabel>
+						<SidebarGroupContent>
+							<SidebarMenu>
+								{managerOnlyItems.map((item) => (
+									<SidebarMenuItem key={item.title}>
+										<SidebarMenuButton
+											asChild
+											isActive={
+												location.pathname === item.url
+											}
+										>
+											<a href={item.url}>
+												<item.icon />
+												<span>{item.title}</span>
+											</a>
+										</SidebarMenuButton>
+									</SidebarMenuItem>
+								))}
+							</SidebarMenu>
+						</SidebarGroupContent>
+					</SidebarGroup>
+				)}
 			</SidebarContent>
 
 			<SidebarFooter>

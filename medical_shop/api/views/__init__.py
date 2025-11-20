@@ -1,6 +1,6 @@
 from .product_views import ProductView
 from .batch_views import BatchView
-from .user_views import register_user, login_user, get_users, update_user, delete_user
+from .user_views import register_user, login_user, get_users, update_shop, delete_shop, list_staffs, add_staff, remove_staff, my_shops, switch_shop, add_shop
 from .order_views import create_order, get_orders, update_order, delete_order, add_order_items, get_order_items
 from .payment_views import add_payment, update_payment, delete_payment, get_payments, get_payment_summary
 from .search_views import get_medicine_suggestions, search_medicines_with_batches, predict_salts
@@ -12,8 +12,14 @@ __all__ = [
     'register_user',
     'login_user',
     'get_users',
-    'update_user',
-    'delete_user',
+    'update_shop',
+    'delete_shop',
+    'list_staffs',
+    'add_staff',
+    'remove_staff',
+    'my_shops',
+    'switch_shop',
+    'add_shop',
     'create_order',
     'get_orders',
     'get_order_items',

@@ -5,6 +5,7 @@ import {
 	SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
+import { ShopSwitcher } from "./ShopSwitcher";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -51,6 +52,9 @@ export function DashboardLayout({
 							))}
 						</BreadcrumbList>
 					</Breadcrumb>
+					<div className="ml-auto">
+						<ShopSwitcher />
+					</div>
 				</header>
 				<div className="flex flex-1 flex-col gap-4 p-4">
 					<div className="min-h-[100vh] flex-1 rounded-xl bg-background">

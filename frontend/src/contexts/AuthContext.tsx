@@ -11,14 +11,22 @@ interface User {
 	phone: string;
 	shopname?: string;
 	manager?: string;
+	accountPhone?: string; // The actual account (staff or manager)
+	shopId?: number; // The current shop context (shop_id)
+	role?: "manager" | "staff"; // User role
 }
 
 interface AuthContextType {
 	user: User | null;
 	login: (userData: User, token?: string) => void;
 	logout: () => void;
+	updateShop: (
+		shopData: { shopId: number; shopname: string },
+		token: string
+	) => void;
 	isAuthenticated: boolean;
 	isLoading: boolean;
+	isManager: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -73,12 +81,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 		localStorage.removeItem("userData");
 	};
 
+	const updateShop = (
+		shopData: { shopId: number; shopname: string },
+		newToken: string
+	) => {
+		if (user) {
+			const updatedUser = {
+				...user,
+				shopId: shopData.shopId,
+				shopname: shopData.shopname,
+			};
+			setUser(updatedUser);
+			setToken(newToken);
+			localStorage.setItem("userData", JSON.stringify(updatedUser));
+			localStorage.setItem("authToken", newToken);
+		}
+	};
+
+	const isManager = user?.role === "manager";
+
 	const value: AuthContextType = {
 		user,
 		login,
 		logout,
+		updateShop,
 		isAuthenticated: !!user,
 		isLoading,
+		isManager,
 	};
 
 	return (

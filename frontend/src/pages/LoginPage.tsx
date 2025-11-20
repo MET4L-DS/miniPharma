@@ -52,11 +52,28 @@ const LoginPage = () => {
 
 			toast.success("Login successful!");
 
+			// Decode token to determine role
+			const tokenPayload = data.token
+				? JSON.parse(atob(data.token.split(".")[1]))
+				: null;
+			const accountPhone = tokenPayload?.account || phoneNumber;
+			const shopIdFromToken = tokenPayload?.shop || data.shop_id;
+
+			// Determine role from response
+			const role: "manager" | "staff" = data.is_manager
+				? "manager"
+				: data.is_staff
+				? "staff"
+				: "manager";
+
 			// Create user object with available data
 			const userData = {
-				phone: phoneNumber,
+				phone: accountPhone, // The account phone (manager or staff)
 				shopname: data.shopname || "",
 				manager: data.manager || "",
+				accountPhone: accountPhone,
+				shopId: shopIdFromToken,
+				role: role,
 			};
 
 			// Update authentication state with token
@@ -82,7 +99,7 @@ const LoginPage = () => {
 						Pharmacy Login
 					</CardTitle>
 					<CardDescription className="text-center">
-						Enter your credentials to access your account
+						Enter your phone number and password to continue
 					</CardDescription>
 				</CardHeader>
 				<form onSubmit={handleLogin}>
