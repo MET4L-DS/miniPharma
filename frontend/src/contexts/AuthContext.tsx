@@ -37,14 +37,12 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 	const [user, setUser] = useState<User | null>(null);
-	const [token, setToken] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 
 	useEffect(() => {
 		// Check for stored user data on app initialization
 		const storedUser = localStorage.getItem("userPhone");
 		const storedUserData = localStorage.getItem("userData");
-		const storedToken = localStorage.getItem("authToken");
 
 		if (storedUser && storedUserData) {
 			try {
@@ -57,9 +55,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 			}
 		}
 
-		if (storedToken) {
-			setToken(storedToken);
-		}
 		setIsLoading(false);
 	}, []);
 
@@ -68,14 +63,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 		localStorage.setItem("userPhone", userData.phone);
 		localStorage.setItem("userData", JSON.stringify(userData));
 		if (authToken) {
-			setToken(authToken);
 			localStorage.setItem("authToken", authToken);
 		}
 	};
 
 	const logout = () => {
 		setUser(null);
-		setToken(null);
 		localStorage.removeItem("authToken");
 		localStorage.removeItem("userPhone");
 		localStorage.removeItem("userData");
@@ -92,7 +85,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 				shopname: shopData.shopname,
 			};
 			setUser(updatedUser);
-			setToken(newToken);
 			localStorage.setItem("userData", JSON.stringify(updatedUser));
 			localStorage.setItem("authToken", newToken);
 		}
