@@ -19,7 +19,6 @@ import { Store, CheckCircle2 } from "lucide-react";
 interface Shop {
 	shop_id: number;
 	shopname: string;
-	contact_number?: string;
 	manager: string;
 }
 
@@ -151,13 +150,6 @@ export default function ShopManagementPage() {
 										</div>
 										<CardDescription>
 											Shop ID: {shop.shop_id}
-											{shop.contact_number && (
-												<>
-													{" "}
-													• Contact:{" "}
-													{shop.contact_number}
-												</>
-											)}
 										</CardDescription>
 									</CardHeader>
 									<CardContent>

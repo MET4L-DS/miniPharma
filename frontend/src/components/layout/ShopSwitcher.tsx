@@ -15,7 +15,6 @@ import { Store, Loader2 } from "lucide-react";
 interface Shop {
 	shop_id: number;
 	shopname: string;
-	contact_number?: string;
 	manager: string;
 }
 

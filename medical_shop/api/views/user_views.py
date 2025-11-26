@@ -20,7 +20,6 @@ def register_user(request):
             password = data.get('password')
             name = data.get('name', '')  # Manager name (optional, defaults to empty)
             shopname = data.get('shopname')
-            contact_number = data.get('contact_number', '')  # Optional shop contact
 
             if not all([phone, password, shopname]):
                 return JsonResponse({'error': 'Phone, password, and shopname are required'}, status=400)
@@ -44,7 +43,6 @@ def register_user(request):
             # Create first shop for this manager
             shop = Shop.objects.create(
                 shopname=shopname,
-                contact_number=contact_number if contact_number else None,
                 manager=manager
             )
 
@@ -142,7 +140,6 @@ def get_users(request):
             shops = Shop.objects.all().order_by('shop_id').values(
                 'shop_id',
                 'shopname',
-                'contact_number',
                 manager_phone='manager__phone'
             )
             results = list(shops)
@@ -216,14 +213,13 @@ def my_shops(request):
                 return JsonResponse({'error': 'Only managers can access multiple shops'}, status=403)
 
             # Return all shops for this manager
-            shops = Shop.objects.filter(manager=caller_account).values('shop_id', 'shopname', 'contact_number')
+            shops = Shop.objects.filter(manager=caller_account).values('shop_id', 'shopname')
             
             shop_list = []
             for shop in shops:
                 shop_list.append({
                     'shop_id': shop['shop_id'],
                     'shopname': shop['shopname'],
-                    'contact_number': shop['contact_number'],
                     'manager': caller_account.phone
                 })
             return JsonResponse(shop_list, safe=False, status=200)
@@ -259,7 +255,7 @@ def switch_shop(request, shop_id):
 
             # generate token with manager as account and shop as context
             token = generate_token(account_phone=caller_account.phone, shop_id=shop.shop_id)
-            return JsonResponse({'success': True, 'token': token, 'shop': {'shop_id': shop.shop_id, 'shopname': shop.shopname, 'contact_number': shop.contact_number, 'manager': shop.manager.phone if shop.manager else None}}, status=200)
+            return JsonResponse({'success': True, 'token': token, 'shop': {'shop_id': shop.shop_id, 'shopname': shop.shopname, 'manager': shop.manager.phone if shop.manager else None}}, status=200)
         except Exception as e:
             logger.error(f"Error switching shop: {str(e)}")
             return JsonResponse({'error': 'Failed to switch shop'}, status=500)
@@ -372,10 +368,6 @@ def update_shop(request, shop_id):
                 shop.shopname = data['shopname']
                 updated = True
             
-            if 'contact_number' in data:
-                shop.contact_number = data['contact_number']
-                updated = True
-            
             if not updated:
                 return JsonResponse({'error': 'No fields to update'}, status=400)
             
@@ -422,7 +414,7 @@ def delete_shop(request, shop_id):
 @csrf_exempt
 @jwt_required
 def add_shop(request):
-    """Manager can add a new shop. Payload: shopname, contact_number (optional)"""
+    """Manager can add a new shop. Payload: shopname"""
     if request.method == 'POST':
         try:
             caller_account = getattr(request, 'account_user', None)
@@ -432,18 +424,13 @@ def add_shop(request):
 
             data = json.loads(request.body)
             shopname = data.get('shopname')
-            contact_number = data.get('contact_number', '')
 
             if not shopname:
                 return JsonResponse({'error': 'Shopname is required'}, status=400)
 
-            if contact_number and (len(contact_number) != 10 or not contact_number.isdigit()):
-                return JsonResponse({'error': 'Contact number must be 10 digits'}, status=400)
-
             # Create new shop for this manager
             shop = Shop.objects.create(
                 shopname=shopname,
-                contact_number=contact_number if contact_number else None,
                 manager=caller_account
             )
 
@@ -452,7 +439,6 @@ def add_shop(request):
                 'shop': {
                     'shop_id': shop.shop_id,
                     'shopname': shop.shopname,
-                    'contact_number': shop.contact_number,
                     'manager': shop.manager.phone
                 }
             }, status=201)

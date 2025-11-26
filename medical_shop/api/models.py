@@ -19,7 +19,6 @@ class Shop(models.Model):
     """Pharmacy/Shop - each entry represents a pharmacy"""
     shop_id = models.AutoField(primary_key=True)
     shopname = models.CharField(max_length=100)
-    contact_number = models.CharField(max_length=10, null=True, blank=True)
     manager = models.ForeignKey(Manager, on_delete=models.CASCADE, related_name='shops')
 
     class Meta:

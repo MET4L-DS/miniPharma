@@ -23,21 +23,11 @@ interface AddShopDialogProps {
 
 export function AddShopDialog({ onShopAdded }: AddShopDialogProps) {
 	const [open, setOpen] = useState(false);
-	const [contactNumber, setContactNumber] = useState("");
 	const [shopname, setShopname] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-
-		// Validation
-		if (
-			contactNumber &&
-			(contactNumber.length !== 10 || !/^\d+$/.test(contactNumber))
-		) {
-			toast.error("Contact number must be exactly 10 digits");
-			return;
-		}
 
 		if (!shopname.trim()) {
 			toast.error("Shop name is required");
@@ -48,11 +38,9 @@ export function AddShopDialog({ onShopAdded }: AddShopDialogProps) {
 		try {
 			await apiService.addShop({
 				shopname,
-				contact_number: contactNumber || undefined,
 			});
 			toast.success("Shop added successfully");
 			setOpen(false);
-			setContactNumber("");
 			setShopname("");
 			onShopAdded?.();
 		} catch (error) {
@@ -92,24 +80,6 @@ export function AddShopDialog({ onShopAdded }: AddShopDialogProps) {
 								onChange={(e) => setShopname(e.target.value)}
 								required
 							/>
-						</div>
-						<div className="grid gap-2">
-							<Label htmlFor="contact">
-								Contact Number (Optional)
-							</Label>
-							<Input
-								id="contact"
-								type="tel"
-								placeholder="10-digit contact number"
-								value={contactNumber}
-								onChange={(e) =>
-									setContactNumber(e.target.value)
-								}
-								maxLength={10}
-							/>
-							<p className="text-xs text-muted-foreground">
-								Shop's contact number (optional)
-							</p>
 						</div>
 					</div>
 					<DialogFooter>

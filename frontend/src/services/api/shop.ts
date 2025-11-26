@@ -5,7 +5,6 @@ import { BaseApiService } from "./base";
 export interface Shop {
 	shop_id: number;
 	shopname: string;
-	contact_number?: string;
 	manager: string;
 }
 
@@ -17,7 +16,6 @@ export interface SwitchShopResponse {
 
 export interface AddShopRequest {
 	shopname: string;
-	contact_number?: string;
 }
 
 export interface AddShopResponse {

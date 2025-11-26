@@ -11,9 +11,9 @@ class ManagerAdmin(admin.ModelAdmin):
 
 @admin.register(Shop)
 class ShopAdmin(admin.ModelAdmin):
-    list_display = ['shop_id', 'shopname', 'contact_number', 'manager']
+    list_display = ['shop_id', 'shopname', 'manager']
     list_filter = ['manager']
-    search_fields = ['shop_id', 'shopname', 'contact_number', 'manager__name']
+    search_fields = ['shop_id', 'shopname', 'manager__name']
 
 
 @admin.register(Staff)
